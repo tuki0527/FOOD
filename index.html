@@ -1,0 +1,3220 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 個人化每週料理規劃 Web App | 小資日嚐</title>
+  <meta name="description" content="結合生成式 AI、料理推薦、食材採買預算、估計熱量及用餐紀錄的個人化晚餐規劃系統。" />
+  <meta property="og:title" content="AI 個人化每週料理規劃 Web App" />
+  <meta property="og:description" content="結合生成式 AI、料理推薦、食材採買預算、估計熱量及用餐紀錄的個人化晚餐規劃系統。" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <!-- Tailwind CSS CDN for instant utility styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            sage: {
+              50: '#F4F7F5',
+              100: '#E7EFEA',
+              200: '#CFDFD5',
+              300: '#A9C4B3',
+              600: '#4A6B5D',
+              700: '#3D594C',
+              800: '#32473D',
+              900: '#23322B',
+            },
+            coral: {
+              500: '#E07A5F',
+              600: '#C96248',
+            },
+            warmbg: '#FAF9F6',
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', '"Noto Sans TC"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Reset & Base Polish */
+    body {
+      background-color: #FAF9F6;
+      color: #2D3748;
+      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+      -webkit-font-smoothing: antialiased;
+    }
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #F1F1EB;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #CFDFD5;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #4A6B5D;
+    }
+    /* Modal Backdrop Transitions */
+    .modal-enter {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+    .modal-enter-active {
+      opacity: 1;
+      transform: scale(1);
+      transition: opacity 180ms cubic-bezier(0.16, 1, 0.3, 1), transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans selection:bg-sage-200 selection:text-sage-900">
+
+  <!-- ================= TOP BAR CONTRACT (Zone 1: Brand | Zone 2: Nav Links | Zone 3: Primary Action) ================= -->
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-stone-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-8">
+      
+      <!-- Zone 1: Single text element wordmark -->
+      <div class="flex items-center gap-3 shrink-0">
+        <div class="w-9 h-9 rounded-xl bg-sage-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+          🍽️
+        </div>
+        <div>
+          <span class="text-lg font-bold text-stone-900 tracking-tight whitespace-nowrap">小資日嚐</span>
+          <span class="hidden sm:inline text-xs text-stone-500 ml-2">每週料理規劃與採買助手</span>
+        </div>
+      </div>
+
+      <!-- Zone 2: Clean single-line text navigation links -->
+      <nav class="hidden md:flex items-center gap-6 text-sm font-medium text-stone-600">
+        <button id="nav-btn-menu" class="hover:text-sage-700 transition-colors whitespace-nowrap shrink-0 text-sage-700 font-semibold border-b-2 border-sage-600 pb-0.5">七日晚餐</button>
+        <button id="nav-btn-grocery" class="hover:text-sage-700 transition-colors whitespace-nowrap shrink-0">採買清單與預算</button>
+        <button id="nav-btn-logs" class="hover:text-sage-700 transition-colors whitespace-nowrap shrink-0">用餐紀錄與偏好</button>
+        <button id="nav-btn-recipes" class="hover:text-sage-700 transition-colors whitespace-nowrap shrink-0">料理資料庫</button>
+      </nav>
+
+      <!-- Zone 3: Primary Action & Status Indicator -->
+      <div class="flex items-center gap-3 shrink-0">
+        <div id="ai-mode-indicator" class="hidden sm:flex items-center text-xs text-stone-500 font-mono bg-stone-100 px-2.5 py-1 rounded-md border border-stone-200 whitespace-nowrap">
+          <span id="current-engine-label">智能本地演算法</span>
+        </div>
+        <button id="open-settings-btn" class="px-3.5 py-1.5 text-xs font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 border border-stone-200">
+          <span>⚙️</span>
+          <span>個人設定</span>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Mobile Sub-navigation bar -->
+    <div class="md:hidden flex items-center justify-around border-t border-stone-100 bg-stone-50/90 text-xs py-2 px-1">
+      <button id="m-nav-btn-menu" class="px-2 py-1 font-semibold text-sage-700">七日晚餐</button>
+      <button id="m-nav-btn-grocery" class="px-2 py-1 text-stone-600">採買清單</button>
+      <button id="m-nav-btn-logs" class="px-2 py-1 text-stone-600">用餐紀錄</button>
+      <button id="m-nav-btn-recipes" class="px-2 py-1 text-stone-600">料理庫</button>
+    </div>
+  </header>
+
+  <!-- ================= NOTIFICATION BANNER / TOAST CONTAINER ================= -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full"></div>
+
+  <!-- ================= MAIN CONTENT VIEWPORT ================= -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- TAB 1: SEVEN-DAY DINNER DASHBOARD -->
+    <section id="view-menu" class="space-y-6">
+      
+      <!-- Top Action Strip: Week Switcher & Re-plan Button -->
+      <div class="bg-white rounded-2xl p-4 sm:p-5 border border-stone-200 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-3">
+            <h1 class="text-xl sm:text-2xl font-bold text-stone-900 tracking-tight">本週晚餐規劃</h1>
+            <div class="inline-flex rounded-lg border border-stone-200 p-0.5 bg-stone-50 text-xs">
+              <button id="btn-this-week" class="px-3 py-1 font-medium rounded-md bg-white text-stone-900 shadow-xs transition-all">本週</button>
+              <button id="btn-next-week" class="px-3 py-1 font-medium rounded-md text-stone-600 hover:text-stone-900 transition-all">下一週</button>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 mt-1.5 text-xs text-stone-500">
+            <span id="label-date-range" class="font-medium text-stone-700">2026/10/19 (週一) ~ 2026/10/25 (週日)</span>
+            <span>·</span>
+            <span>固定一人份</span>
+            <span>·</span>
+            <span>不含過敏與忌口食材</span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2.5 w-full md:w-auto">
+          <button id="btn-replan-all" class="flex-1 md:flex-none px-4 py-2.5 bg-sage-600 hover:bg-sage-700 active:bg-sage-800 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 whitespace-nowrap">
+            <span>✨</span>
+            <span>產生 / 重新規劃菜單</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Budget & Nutrition KPI Overview Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <!-- Budget Card -->
+        <div class="bg-white rounded-2xl p-4 border border-stone-200 shadow-xs">
+          <div class="flex items-center justify-between text-xs text-stone-500 mb-1">
+            <span>整週採買預算</span>
+            <button id="btn-quick-edit-budget" class="text-sage-600 hover:underline">修改</button>
+          </div>
+          <div class="flex items-baseline gap-1">
+            <span class="text-xs text-stone-400">NT$</span>
+            <span id="kpi-budget-amount" class="text-2xl font-bold text-stone-900 tabular-nums">1,000</span>
+          </div>
+          <div class="mt-2 text-xs text-stone-500">
+            採買佔比：<span id="kpi-budget-percent" class="font-semibold text-stone-800 tabular-nums">0%</span>
+          </div>
+          <div class="w-full bg-stone-100 rounded-full h-1.5 mt-1.5 overflow-hidden">
+            <div id="kpi-budget-progress-bar" class="bg-sage-600 h-1.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Projected Grocery Cost Card (Packaged) -->
+        <div class="bg-white rounded-2xl p-4 border border-stone-200 shadow-xs">
+          <div class="text-xs text-stone-500 mb-1 flex items-center justify-between">
+            <span>預計超市採買總額</span>
+            <span class="text-[11px] text-stone-400">完整包裝換算</span>
+          </div>
+          <div class="flex items-baseline gap-1">
+            <span class="text-xs text-stone-400">NT$</span>
+            <span id="kpi-grocery-total" class="text-2xl font-bold text-stone-900 tabular-nums">0</span>
+          </div>
+          <div id="kpi-budget-status-msg" class="mt-2 text-xs font-medium text-emerald-700 flex items-center gap-1">
+            <span>結餘預估：NT$ 0</span>
+          </div>
+        </div>
+
+        <!-- Ingredient Usage Cost Card (Actual Proportional) -->
+        <div class="bg-white rounded-2xl p-4 border border-stone-200 shadow-xs">
+          <div class="text-xs text-stone-500 mb-1 flex items-center justify-between">
+            <span>食材實際使用成本</span>
+            <span class="text-[11px] text-stone-400">依比例換算</span>
+          </div>
+          <div class="flex items-baseline gap-1">
+            <span class="text-xs text-stone-400">NT$</span>
+            <span id="kpi-usage-total" class="text-2xl font-bold text-stone-800 tabular-nums">0</span>
+          </div>
+          <div class="mt-2 text-xs text-stone-500">
+            平均每餐：<span id="kpi-avg-meal-cost" class="font-semibold text-stone-700 tabular-nums">NT$ 0</span>
+          </div>
+        </div>
+
+        <!-- Meal Completion & Calorie Status -->
+        <div class="bg-white rounded-2xl p-4 border border-stone-200 shadow-xs">
+          <div class="text-xs text-stone-500 mb-1 flex items-center justify-between">
+            <span>用餐進度與總熱量</span>
+            <span class="text-[11px] text-stone-400">全週預估</span>
+          </div>
+          <div class="flex items-baseline gap-1">
+            <span id="kpi-completed-count" class="text-2xl font-bold text-stone-900 tabular-nums">0</span>
+            <span class="text-xs text-stone-500">/ 7 餐已完成</span>
+          </div>
+          <div class="mt-2 text-xs text-stone-500 flex items-center justify-between">
+            <span>七日平均熱量：</span>
+            <span id="kpi-avg-calories" class="font-semibold text-stone-700 tabular-nums">約 0 kcal</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Over-budget or Safe notice strip -->
+      <div id="budget-alert-banner" class="hidden rounded-xl p-3.5 border text-xs sm:text-sm flex items-start gap-2.5">
+        <span id="budget-alert-icon" class="text-base shrink-0">⚠️</span>
+        <div id="budget-alert-text" class="flex-1"></div>
+      </div>
+
+      <!-- Seven-Day Meal Cards Grid -->
+      <div id="meal-cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        <!-- Injected via JavaScript -->
+      </div>
+
+    </section>
+
+    <!-- TAB 2: GROCERY & BUDGET VIEW -->
+    <section id="view-grocery" class="hidden space-y-6">
+      
+      <div class="bg-white rounded-2xl p-5 border border-stone-200 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-stone-900 tracking-tight">整週採買清單與包裝換算</h2>
+          <p class="text-xs text-stone-500 mt-1">
+            系統已自動合併七日相同食材，並依台灣超市（如全聯）標準規格換算購買包數與剩餘預估。
+          </p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btn-copy-grocery-list" class="px-3.5 py-2 text-xs font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors border border-stone-200 flex items-center gap-1.5 whitespace-nowrap">
+            <span>📋</span>
+            <span>複製採買清單</span>
+          </button>
+          <button id="btn-reset-grocery-checks" class="px-3 py-2 text-xs text-stone-500 hover:text-stone-800 transition-colors whitespace-nowrap">
+            重設勾選
+          </button>
+        </div>
+      </div>
+
+      <!-- Pantry Assumption Notice Box -->
+      <div class="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3.5 text-xs text-amber-900 flex items-start gap-2.5">
+        <span class="text-base">🧂</span>
+        <div>
+          <span class="font-semibold">基礎常備調味料假設：</span>
+          純釀造醬油、食用油、鹽、砂糖、生薑、大蒜、黑胡椒等基本廚房常備品，已計入每餐的使用成本與熱量，但第一版假設家中已有庫存，故不計入超市包裝採買金額。
+        </div>
+      </div>
+
+      <!-- Grocery Table Container -->
+      <div class="bg-white rounded-2xl border border-stone-200 shadow-xs overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-stone-50 border-b border-stone-200 text-xs font-semibold text-stone-600">
+                <th class="py-3 px-4 w-12 text-center">已購</th>
+                <th class="py-3 px-4">食材名稱 / 分類</th>
+                <th class="py-3 px-4 text-right">七天總用量</th>
+                <th class="py-3 px-4">超市包裝規格</th>
+                <th class="py-3 px-4 text-right">預計購買</th>
+                <th class="py-3 px-4 text-right">參考單價</th>
+                <th class="py-3 px-4 text-right">預計採買金額</th>
+                <th class="py-3 px-4 text-right">預估剩餘量</th>
+              </tr>
+            </thead>
+            <tbody id="grocery-table-body" class="divide-y divide-stone-100 text-sm">
+              <!-- Injected by JavaScript -->
+            </tbody>
+            <tfoot>
+              <tr class="bg-stone-50 font-semibold text-stone-900 text-sm border-t border-stone-200">
+                <td colspan="6" class="py-3.5 px-4 text-right">整週預計採買總金額：</td>
+                <td id="grocery-table-sum" class="py-3.5 px-4 text-right text-base text-sage-800 tabular-nums">NT$ 0</td>
+                <td class="py-3.5 px-4 text-xs text-stone-500 text-right">（不含常備調味）</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- TAB 3: MEAL LOGS & USER PREFERENCES -->
+    <section id="view-logs" class="hidden space-y-6">
+      
+      <div class="bg-white rounded-2xl p-5 border border-stone-200 shadow-xs">
+        <h2 class="text-xl font-bold text-stone-900 tracking-tight">用餐紀錄、評分與歷史偏好摘要</h2>
+        <p class="text-xs text-stone-500 mt-1">
+          只有您確認標記為「已完成」的晚餐才會納入熱量統計與評分學習。
+        </p>
+      </div>
+
+      <!-- Stats overview -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white rounded-2xl p-4 border border-stone-200 shadow-xs">
+          <div class="text-xs text-stone-500">已食用晚餐累計估計熱量</div>
+          <div class="text-2xl font-bold text-stone-900 mt-1 tabular-nums">
+            <span id="log-total-consumed-kcal">0</span> <span class="text-xs font-normal text-stone-500">kcal</span>
+          </div>
+          <div class="text-[11px] text-stone-400 mt-1">僅統計確認食用的晚餐，非全天攝取</div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 border border-stone-200 shadow-xs">
+          <div class="text-xs text-stone-500">已食用完成餐次</div>
+          <div class="text-2xl font-bold text-stone-900 mt-1 tabular-nums">
+            <span id="log-total-meals-count">0</span> <span class="text-xs font-normal text-stone-500">餐</span>
+          </div>
+          <div class="text-[11px] text-stone-400 mt-1">累積健康生活習慣紀錄</div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 border border-stone-200 shadow-xs">
+          <div class="text-xs text-stone-500">料理平均評分</div>
+          <div class="text-2xl font-bold text-amber-500 mt-1 tabular-nums">
+            <span id="log-avg-rating">0.0</span> <span class="text-xs font-normal text-stone-400">/ 5.0 ★</span>
+          </div>
+          <div class="text-[11px] text-stone-400 mt-1">高分料理會在未來獲得更高推薦權重</div>
+        </div>
+      </div>
+
+      <!-- Preference Summary Box -->
+      <div class="bg-white rounded-2xl p-5 border border-stone-200 shadow-xs space-y-3">
+        <h3 class="text-sm font-bold text-stone-800">個人化偏好學習與統計摘要</h3>
+        <div id="preferences-summary-content" class="text-xs text-stone-600 leading-relaxed grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- Injected via JS -->
+        </div>
+      </div>
+
+      <!-- Logs History List -->
+      <div class="bg-white rounded-2xl border border-stone-200 shadow-xs overflow-hidden">
+        <div class="p-4 border-b border-stone-200 font-bold text-stone-800 text-sm">歷史用餐紀錄列表</div>
+        <div id="meal-logs-list" class="divide-y divide-stone-100 text-sm">
+          <!-- Injected via JS -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- TAB 4: RECIPES REPOSITORY -->
+    <section id="view-recipes" class="hidden space-y-6">
+      <div class="bg-white rounded-2xl p-5 border border-stone-200 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-stone-900 tracking-tight">固定料理與食材規格庫</h2>
+          <p class="text-xs text-stone-500 mt-1">
+            本系統收錄經人工核對之標準一人份料理資料庫，所有熱量、規格與價格皆可透明查核。
+          </p>
+        </div>
+        <!-- Search & Filter -->
+        <div class="flex items-center gap-2 w-full sm:w-auto">
+          <input type="text" id="recipe-search-input" placeholder="搜尋料理或食材..." class="w-full sm:w-60 px-3 py-1.5 text-xs rounded-lg border border-stone-200 focus:outline-none focus:border-sage-600" />
+        </div>
+      </div>
+
+      <div id="recipe-repo-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <!-- Injected by JS -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="mt-auto border-t border-stone-200 bg-white py-6 text-xs text-stone-500">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div>
+        <span>© 2026 小資日嚐 · AI 個人化每週料理規劃 Web App</span>
+        <span class="mx-1.5">·</span>
+        <span class="text-stone-400">專題展示版本</span>
+      </div>
+      <div class="flex items-center gap-4 text-stone-500">
+        <span>資料保存於本機 (localStorage)</span>
+        <span>·</span>
+        <button id="btn-export-data" class="hover:underline">匯出資料</button>
+        <span>·</span>
+        <button id="btn-reset-all-data" class="text-coral-500 hover:underline">重設資料</button>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ================= MODAL: RECIPE DETAIL ================= -->
+  <div id="modal-recipe-detail" class="fixed inset-0 z-50 hidden bg-stone-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-stone-200 p-6 space-y-5">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <span id="modal-detail-category" class="text-xs font-semibold text-sage-700 bg-sage-50 px-2.5 py-1 rounded-md">日式定食</span>
+          <h2 id="modal-detail-title" class="text-2xl font-bold text-stone-900 mt-2">料理名稱</h2>
+          <div class="flex items-center gap-3 text-xs text-stone-500 mt-1">
+            <span id="modal-detail-cooktime">⏱️ 20 分鐘</span>
+            <span>·</span>
+            <span id="modal-detail-calories">約 520 kcal</span>
+            <span>·</span>
+            <span id="modal-detail-cost">使用成本約 NT$ 65</span>
+          </div>
+        </div>
+        <button id="btn-close-recipe-detail" class="text-stone-400 hover:text-stone-700 p-1 rounded-lg text-lg">✕</button>
+      </div>
+
+      <!-- Image Slot -->
+      <div class="w-full h-52 rounded-2xl overflow-hidden bg-stone-100 relative border border-stone-100">
+        <img id="modal-detail-image" src="" alt="料理圖" class="w-full h-full object-cover" />
+      </div>
+
+      <!-- Allergens & Tag Warnings -->
+      <div id="modal-detail-allergens-box" class="hidden text-xs bg-amber-50 text-amber-800 p-3 rounded-xl border border-amber-200">
+        ⚠️ <span class="font-semibold">過敏原標示：</span><span id="modal-detail-allergens">大豆、麩質</span>
+      </div>
+
+      <!-- Ingredients List Table -->
+      <div>
+        <h4 class="text-sm font-bold text-stone-800 mb-2">一人份所需食材與估計熱量</h4>
+        <div class="border border-stone-200 rounded-xl overflow-hidden text-xs">
+          <table class="w-full text-left">
+            <thead class="bg-stone-50 border-b border-stone-200 text-stone-600 font-semibold">
+              <tr>
+                <th class="p-2.5">食材</th>
+                <th class="p-2.5 text-right">份量</th>
+                <th class="p-2.5 text-right">預估熱量</th>
+                <th class="p-2.5 text-right">使用成本</th>
+              </tr>
+            </thead>
+            <tbody id="modal-detail-ingredients-tbody" class="divide-y divide-stone-100">
+              <!-- Injected by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Cooking Steps -->
+      <div>
+        <h4 class="text-sm font-bold text-stone-800 mb-2">簡易烹調步驟</h4>
+        <ol id="modal-detail-steps" class="space-y-2 text-xs text-stone-700 list-decimal list-inside pl-1 leading-relaxed">
+          <!-- Injected by JS -->
+        </ol>
+      </div>
+
+      <!-- Nutrition Disclaimer -->
+      <div class="text-[11px] text-stone-400 border-t border-stone-100 pt-3">
+        * 熱量為依據食藥署與超市食材標準標示計算之估計值，實際熱量可能因烹調手法、食用油份量微幅變動。
+      </div>
+
+      <div class="flex justify-end pt-2">
+        <button id="btn-close-recipe-detail-bottom" class="px-5 py-2 text-xs font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-xl transition-colors">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: DISH REPLACEMENT (Single Day) ================= -->
+  <div id="modal-replace-dish" class="fixed inset-0 z-50 hidden bg-stone-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-stone-200 p-6 space-y-5">
+      <div class="flex items-start justify-between">
+        <div>
+          <h2 class="text-xl font-bold text-stone-900">替換單日料理</h2>
+          <p id="replace-modal-subtitle" class="text-xs text-stone-500 mt-1">
+            為 2026/10/21 (週三) 尋找其他合適的替代菜色
+          </p>
+        </div>
+        <button id="btn-close-replace-modal" class="text-stone-400 hover:text-stone-700 p-1 rounded-lg text-lg">✕</button>
+      </div>
+
+      <!-- Current dish strip -->
+      <div class="bg-stone-50 p-3.5 rounded-xl border border-stone-200 text-xs flex items-center justify-between">
+        <div>
+          <span class="text-stone-400">目前原定料理：</span>
+          <span id="replace-modal-current-name" class="font-bold text-stone-800 ml-1">經典日式照燒雞腿飯</span>
+        </div>
+        <div id="replace-modal-current-cost" class="text-stone-500 font-mono">使用成本約 NT$ 65</div>
+      </div>
+
+      <div class="space-y-3">
+        <div class="text-xs font-semibold text-stone-700 flex items-center justify-between">
+          <span>推薦替換候選（已自動排除您的過敏與忌口）：</span>
+          <span class="text-stone-400 font-normal">點選即可預覽整週採買變動</span>
+        </div>
+
+        <div id="replace-candidates-container" class="space-y-3">
+          <!-- Injected via JS: 2-3 interactive cards showing budget diff -->
+        </div>
+      </div>
+
+      <!-- Overbudget or Saving warning if candidate chosen -->
+      <div id="replace-budget-delta-box" class="hidden p-3.5 rounded-xl text-xs flex items-center justify-between border">
+        <!-- Injected via JS -->
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-stone-100">
+        <button id="btn-cancel-replace" class="px-4 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100 rounded-xl transition-colors">取消</button>
+        <button id="btn-confirm-replace" disabled class="px-5 py-2 text-xs font-semibold bg-sage-600 disabled:opacity-50 hover:bg-sage-700 text-white rounded-xl shadow-xs transition-colors">確認替換此料理</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: RE-PLAN CONFIRMATION / DRAFT PREVIEW ================= -->
+  <div id="modal-replan-confirm" class="fixed inset-0 z-50 hidden bg-stone-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-stone-200 p-6 space-y-5">
+      <div class="flex items-start justify-between">
+        <div>
+          <h2 class="text-xl font-bold text-stone-900">重新規劃七日晚餐草稿</h2>
+          <p class="text-xs text-stone-500 mt-1">
+            系統已根據您的偏好產生全新候選菜單。過去已標記「已完成」的餐次將會予以保留，不受影響。
+          </p>
+        </div>
+        <button id="btn-close-replan-modal" class="text-stone-400 hover:text-stone-700 p-1 text-lg">✕</button>
+      </div>
+
+      <!-- Comparison of Budget -->
+      <div class="grid grid-cols-2 gap-3 text-xs">
+        <div class="p-3 bg-stone-50 rounded-xl border border-stone-200">
+          <div class="text-stone-400">目前原菜單採買總額</div>
+          <div id="replan-old-cost" class="text-lg font-bold text-stone-700 mt-0.5 tabular-nums">NT$ 0</div>
+        </div>
+        <div class="p-3 bg-sage-50 rounded-xl border border-sage-200">
+          <div class="text-sage-700 font-medium">新草稿預計採買總額</div>
+          <div id="replan-new-cost" class="text-lg font-bold text-sage-900 mt-0.5 tabular-nums">NT$ 0</div>
+        </div>
+      </div>
+
+      <!-- Preview of new 7 days -->
+      <div class="border border-stone-200 rounded-xl overflow-hidden text-xs">
+        <table class="w-full text-left">
+          <thead class="bg-stone-50 border-b border-stone-200 font-semibold text-stone-600">
+            <tr>
+              <th class="p-2.5">星期與日期</th>
+              <th class="p-2.5">草稿推薦料理</th>
+              <th class="p-2.5 text-right">估計熱量</th>
+              <th class="p-2.5">推薦重點</th>
+            </tr>
+          </thead>
+          <tbody id="replan-draft-table-body" class="divide-y divide-stone-100">
+            <!-- Injected via JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="flex justify-end gap-2.5 pt-2">
+        <button id="btn-cancel-replan-draft" class="px-4 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100 rounded-xl transition-colors">取消保留原菜單</button>
+        <button id="btn-apply-replan-draft" class="px-5 py-2 text-xs font-semibold bg-sage-600 hover:bg-sage-700 text-white rounded-xl shadow-xs transition-colors">確認套用新菜單</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: MEAL COMPLETION & RATING ================= -->
+  <div id="modal-meal-rating" class="fixed inset-0 z-50 hidden bg-stone-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-stone-200 p-6 space-y-4">
+      <div class="flex items-start justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-stone-900">記錄晚餐用餐與評分</h2>
+          <p id="rating-modal-meal-title" class="text-xs text-stone-500 mt-0.5">經典日式照燒雞腿飯</p>
+        </div>
+        <button id="btn-close-rating-modal" class="text-stone-400 hover:text-stone-700 p-1 text-lg">✕</button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-stone-700 mb-1">美味評分 (1 ~ 5 星)</label>
+          <div class="flex items-center gap-2" id="star-rating-buttons">
+            <button type="button" data-val="1" class="star-btn text-2xl text-stone-300 hover:text-amber-400 transition-colors">★</button>
+            <button type="button" data-val="2" class="star-btn text-2xl text-stone-300 hover:text-amber-400 transition-colors">★</button>
+            <button type="button" data-val="3" class="star-btn text-2xl text-stone-300 hover:text-amber-400 transition-colors">★</button>
+            <button type="button" data-val="4" class="star-btn text-2xl text-stone-300 hover:text-amber-400 transition-colors">★</button>
+            <button type="button" data-val="5" class="star-btn text-2xl text-amber-400 transition-colors">★</button>
+            <span id="star-rating-desc" class="text-xs text-stone-500 ml-2">非常滿意 (5星)</span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-stone-700 mb-1">自訂備註 / 心得（選填）</label>
+          <input type="text" id="rating-modal-notes" placeholder="例如：少放了一點醬油，味道剛好！" class="w-full text-xs px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-sage-600" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-stone-700 mb-1">實際相關花費（選填，NT$）</label>
+          <input type="number" id="rating-modal-spend" placeholder="若有額外加菜或實際單餐花費" class="w-full text-xs px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-sage-600" />
+          <p class="text-[11px] text-stone-400 mt-1">此花費獨立作為生活記帳參考，不影響每週超市採買包裝預估。</p>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2 border-t border-stone-100">
+        <button id="btn-cancel-rating" class="px-4 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100 rounded-xl transition-colors">取消</button>
+        <button id="btn-save-rating" class="px-5 py-2 text-xs font-semibold bg-sage-600 hover:bg-sage-700 text-white rounded-xl shadow-xs transition-colors">儲存用餐紀錄</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: PERSONAL SETTINGS & PROFILE ================= -->
+  <div id="modal-settings" class="fixed inset-0 z-50 hidden bg-stone-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-stone-200 p-6 space-y-5">
+      <div class="flex items-start justify-between">
+        <div>
+          <h2 class="text-xl font-bold text-stone-900">個人化偏好與系統設定</h2>
+          <p class="text-xs text-stone-500 mt-0.5">修改設定後會儲存於您的瀏覽器，但不會自動打亂現有菜單，需點擊重新規劃才會套用。</p>
+        </div>
+        <button id="btn-close-settings-modal" class="text-stone-400 hover:text-stone-700 p-1 text-lg">✕</button>
+      </div>
+
+      <form id="form-settings" class="space-y-4 text-xs">
+        
+        <!-- Budget & Diet Goal -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">每週採買預算目標 (NT$)</label>
+            <input type="number" id="setting-budget" min="400" max="5000" step="50" value="1000" class="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-sage-600 text-sm font-bold" />
+            <span class="text-[11px] text-stone-400">預設為 NT$ 1,000 / 週</span>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">主要飲食目標</label>
+            <select id="setting-diet-goal" class="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-sage-600 text-xs bg-white">
+              <option value="均衡飲食">均衡飲食（蔬菜、肉類、主食平衡）</option>
+              <option value="高蛋白質增肌">高蛋白質（優先安排雞胸肉、蛋豆海鮮）</option>
+              <option value="清爽高纖低負擔">清爽高纖（多蔬菜與蕈菇，控制熱量）</option>
+              <option value="小資經濟省錢">小資經濟省錢（優先共用食材降低包裝費）</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Allergens (Strict Exclusion!) -->
+        <div class="p-3.5 bg-red-50/60 rounded-xl border border-red-200/80">
+          <label class="block font-semibold text-red-900 mb-1">
+            🚫 過敏或必須絕對避免的食材（嚴格排除，絕不推薦）：
+          </label>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2" id="allergens-checkboxes">
+            <label class="flex items-center gap-1.5 cursor-pointer text-stone-700">
+              <input type="checkbox" value="海鮮魚類" class="rounded text-red-600 focus:ring-red-500" />
+              <span>海鮮魚類</span>
+            </label>
+            <label class="flex items-center gap-1.5 cursor-pointer text-stone-700">
+              <input type="checkbox" value="甲殼海鮮" class="rounded text-red-600 focus:ring-red-500" />
+              <span>蝦仁甲殼</span>
+            </label>
+            <label class="flex items-center gap-1.5 cursor-pointer text-stone-700">
+              <input type="checkbox" value="大豆" class="rounded text-red-600 focus:ring-red-500" />
+              <span>大豆豆腐</span>
+            </label>
+            <label class="flex items-center gap-1.5 cursor-pointer text-stone-700">
+              <input type="checkbox" value="雞蛋" class="rounded text-red-600 focus:ring-red-500" />
+              <span>蛋類製品</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Liked & Disliked Ingredients -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">偏好/喜歡的食材（增加推薦權重）</label>
+            <input type="text" id="setting-liked" placeholder="例如：雞胸肉, 洋蔥, 綠花椰菜, 番茄" class="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-sage-600" />
+            <span class="text-[11px] text-stone-400">以逗號分隔多項食材名稱</span>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">不喜歡/避開的食材（降低或排除）</label>
+            <input type="text" id="setting-disliked" placeholder="例如：胡蘿蔔, 苦瓜" class="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-sage-600" />
+            <span class="text-[11px] text-stone-400">以逗號分隔多項食材名稱</span>
+          </div>
+        </div>
+
+        <!-- Preferred Cuisine & Activity Level -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">偏好料理風格</label>
+            <select id="setting-cuisine" class="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-sage-600 bg-white">
+              <option value="綜合家常">綜合多樣家常（台式、日式輪替）</option>
+              <option value="日式定食">偏好日式定食風味（清淡雅緻）</option>
+              <option value="家常台式">偏好家常台式快炒（鑊氣香濃）</option>
+              <option value="暖胃湯料理">偏好暖胃湯煲料理（舒心溫潤）</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">日常生活活動程度</label>
+            <select id="setting-activity" class="w-full px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-sage-600 bg-white">
+              <option value="久坐上班族">久坐上班族 / 學生（少運動）</option>
+              <option value="輕度活動">輕度活動（每週運動 1~2 次）</option>
+              <option value="中度規律運動">中度運動（每週運動 3~4 次）</option>
+              <option value="高強度勞動">高強度勞動 / 激烈運動</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Optional Height & Weight for BMI Reference -->
+        <div class="p-3.5 bg-stone-50 rounded-xl border border-stone-200">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-semibold text-stone-700">身高與體重（選填，提供一般性 BMI 參考）</span>
+            <span id="setting-bmi-display" class="font-mono text-sage-800 font-bold">BMI: --</span>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-[11px] text-stone-500">身高 (cm)</label>
+              <input type="number" id="setting-height" placeholder="172" min="100" max="230" class="w-full px-2.5 py-1.5 rounded-lg border border-stone-200" />
+            </div>
+            <div>
+              <label class="text-[11px] text-stone-500">體重 (kg)</label>
+              <input type="number" id="setting-weight" placeholder="65" min="30" max="200" class="w-full px-2.5 py-1.5 rounded-lg border border-stone-200" />
+            </div>
+          </div>
+          <p class="text-[11px] text-stone-400 mt-2">
+            * 聲明：BMI 僅為一般健康體位評估參考，未成年人不適用成人標準。本系統不提供任何限制性熱量處方或醫療診斷。
+          </p>
+        </div>
+
+        <!-- AI Engine & Cloudflare Worker Settings -->
+        <div class="p-3.5 bg-sage-50/70 rounded-xl border border-sage-200 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-sage-900">推薦引擎模式與 Cloudflare Worker 代理</span>
+            <span class="text-[11px] text-sage-700">安全金鑰代理架構</span>
+          </div>
+          
+          <div class="flex items-center gap-4">
+            <label class="flex items-center gap-1.5 cursor-pointer">
+              <input type="radio" name="recommendation-mode" value="local" checked class="text-sage-600 focus:ring-sage-500" />
+              <span class="font-medium text-stone-800">智能本地演算法（推薦・完全離線・免金鑰）</span>
+            </label>
+            <label class="flex items-center gap-1.5 cursor-pointer">
+              <input type="radio" name="recommendation-mode" value="ai" class="text-sage-600 focus:ring-sage-500" />
+              <span class="font-medium text-stone-800">Gemini 生成式 AI 推薦（需填 Worker 網址）</span>
+            </label>
+          </div>
+
+          <div id="worker-url-box" class="pt-2">
+            <label class="block text-[11px] font-semibold text-stone-600 mb-1">Cloudflare Worker 代理網址：</label>
+            <div class="flex gap-2">
+              <input type="url" id="setting-worker-url" placeholder="https://my-meal-worker.workers.dev" class="flex-1 px-3 py-1.5 rounded-lg border border-stone-300 text-xs bg-white focus:outline-none focus:border-sage-600" />
+              <button type="button" id="btn-test-worker" class="px-3 py-1.5 bg-white border border-stone-300 hover:bg-stone-50 text-stone-700 text-xs rounded-lg font-medium whitespace-nowrap">
+                測試連線
+              </button>
+            </div>
+            <p class="text-[11px] text-stone-500 mt-1">
+              由 Cloudflare Worker Secrets 保管 Gemini API Key，前端絕不儲存或洩漏任何金鑰。若尚未部屬 Worker，系統將自動以高品質本地推薦演算法運行。
+            </p>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2.5 pt-3 border-t border-stone-100">
+          <button type="button" id="btn-cancel-settings" class="px-4 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100 rounded-xl transition-colors">取消</button>
+          <button type="submit" class="px-5 py-2 text-xs font-semibold bg-sage-600 hover:bg-sage-700 text-white rounded-xl shadow-xs transition-colors">儲存個人設定</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= LOADING OVERLAY ================= -->
+  <div id="loading-overlay" class="fixed inset-0 z-50 hidden bg-stone-900/30 backdrop-blur-xs flex flex-col items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-xl border border-stone-200 space-y-3">
+      <div class="w-10 h-10 border-3 border-sage-200 border-t-sage-600 rounded-full animate-spin mx-auto"></div>
+      <div id="loading-title" class="font-bold text-stone-800 text-sm">正在產生推薦菜單...</div>
+      <div id="loading-desc" class="text-xs text-stone-500">正在分析食材共用率與七日採買預算</div>
+    </div>
+  </div>
+
+  <!-- ================= JAVASCRIPT LOGIC (Modularized Clean Vanilla Architecture) ================= -->
+  <script type="module">
+    /**
+     * AI 個人化每週料理規劃 Web App
+     * 結構化模組架構：
+     * 1. 靜態食材規格資料庫 (INGREDIENTS_DB)
+     * 2. 靜態料理資料庫 (RECIPES_DB)
+     * 3. 狀態儲存與 LocalStorage 管理 (State & Store)
+     * 4. 成本與熱量核心計算引擎 (Engine: Usage Cost, Packaged Cost, Calories)
+     * 5. 智慧推薦演算法 (Local Recommendation Algorithm & AI Proxy)
+     * 6. UI 渲染器 (UI Renderer: Cards, Grocery Table, Logs, Modals)
+     * 7. 事件監聽與控制器 (Controllers & Handlers)
+     */
+
+    // --- 1. 食材資料庫 (人工查核全聯福利中心與常見超市公開標準規格) ---
+    const INGREDIENTS_DB = {
+      // 肉類海鮮
+      ing_chicken_thigh: {
+        id: 'ing_chicken_thigh',
+        name: '去骨雞腿排',
+        category: '肉類海鮮',
+        standardUnit: 'g',
+        packageSize: 250,
+        packageUnit: '盒',
+        referencePrice: 105,
+        priceSource: '全聯公開規格參考',
+        verifiedDate: '2026-10-15',
+        kcalPer100g: 175,
+        isPantry: false
+      },
+      ing_chicken_breast: {
+        id: 'ing_chicken_breast',
+        name: '去骨清雞胸肉',
+        category: '肉類海鮮',
+        standardUnit: 'g',
+        packageSize: 300,
+        packageUnit: '盒',
+        referencePrice: 89,
+        priceSource: '全聯公開規格參考',
+        verifiedDate: '2026-10-15',
+        kcalPer100g: 115,
+        isPantry: false
+      },
+      ing_pork_slices: {
+        id: 'ing_pork_slices',
+        name: '梅花豬肉薄片',
+        category: '肉類海鮮',
+        standardUnit: 'g',
+        packageSize: 300,
+        packageUnit: '盒',
+        referencePrice: 115,
+        priceSource: '全聯公開規格參考',
+        verifiedDate: '2026-10-15',
+        kcalPer100g: 225,
+        isPantry: false
+      },
+      ing_pork_loin: {
+        id: 'ing_pork_loin',
+        name: '里肌豬肉絲',
+        category: '肉類海鮮',
+        standardUnit: 'g',
+        packageSize: 250,
+        packageUnit: '盒',
+        referencePrice: 85,
+        priceSource: '全聯公開規格參考',
+        verifiedDate: '2026-10-15',
+        kcalPer100g: 155,
+        isPantry: false
+      },
+      ing_salmon: {
+        id: 'ing_salmon',
+        name: '冷凍大西洋鮭魚排',
+        category: '肉類海鮮',
+        standardUnit: 'g',
+        packageSize: 220,
+        packageUnit: '片',
+        referencePrice: 129,
+        priceSource: '全聯公開規格參考',
+        verifiedDate: '2026-10-15',
+        kcalPer100g: 205,
+        isPantry: false
+      },
+      ing_shrimp: {
+        id: 'ing_shrimp',
+        name: '鮮凍白蝦仁',
+        category: '肉類海鮮',
+        standardUnit: 'g',
+        packageSize: 180,
+        packageUnit: '包',
+        referencePrice: 119,
+        priceSource: '全聯公開規格參考',
+        verifiedDate: '2026-10-15',
+        kcalPer100g: 85,
+        isPantry: false
+      },
+
+      // 蛋豆製品
+      ing_eggs: {
+        id: 'ing_eggs',
+        name: '洗選新鮮雞蛋',
+        category: '蛋豆製品',
+        standardUnit: '顆',
+        packageSize: 10,
+        packageUnit: '盒',
+        referencePrice: 65,
+        priceSource: '全聯公開規格參考',
+        verifiedDate: '2026-10-15',
+        kcalPerStandardUnit: 75,
+        isPantry: false
+      },
+      ing_tofu_firm: {
+        id: 'ing_tofu_firm',
+        name: '傳統板豆腐',
+        category: '蛋豆製品',
+        standardUnit: 'g',
+        packageSize: 400,
+        packageUnit: '盒',
+        referencePrice: 28,
+        priceSource: '全聯公開規格參考',
+        verifiedDate: '2026-10-15',
+        kcalPer100g: 88,
+        isPantry: false
+      },
+      ing_tofu_soft: {
+        id: 'ing_tofu_soft',
+        name: '嫩豆腐',
+        category: '蛋豆製品',
+        standardUnit: 'g',
+        packageSize: 300,
+        packageUnit: '盒',
+        referencePrice: 22,
+        priceSource: '全聯公開規格參考',
+        verifiedDate: '2026-10-15',
+        kcalPer100g: 52,
+        isPantry: false
+      },
+
+      // 蔬菜蕈菇
+      ing_onion: {
+        id: 'ing_onion',
+        name: '黃洋蔥',
+        category: '蔬菜蕈菇',
+        standardUnit: 'g',
+        packageSize: 600,
+        packageUnit: '袋',
+        referencePrice: 45,
+        priceSource: '全聯公開規格參考',
+        verifiedDate: '2026-10-15',
+        kcalPer100g: 40,
+        isPantry: false
+      },
+      ing_scallion: {
+        id: 'ing_scallion',
+        name: '青蔥',
+        category: '蔬菜蕈菇',
+        standardUnit: 'g',
+        packageSize: 150,
+        packageUnit: '把',
+        referencePrice: 39,
+        priceSource: '全聯公開規格參考',
+        verifiedDate: '2026-10-15',
+        kcalPer100g: 28,
+        isPantry: false
+      },
+      ing_broccoli: {
+        id: 'ing_broccoli',
+        name: '綠花椰菜',
+        category: '蔬菜蕈菇',
+        standardUnit: 'g',
+        packageSize: 300,
+        packageUnit: '朵',
+        referencePrice: 49,
+        priceSource: '全聯公開規格參考',
+        verifiedDate: '2026-10-15',
+        kcalPer100g: 33,
+        isPantry: false
+      },
+      ing_cabbage: {
+        id: 'ing_cabbage',
+        name: '新鮮高麗菜',
+        category: '蔬菜蕈菇',
+        standardUnit: 'g',
+        packageSize: 800,
+        packageUnit: '半顆',
+        referencePrice: 45,
+        priceSource: '全聯公開規格參考',
+        verifiedDate: '2026-10-15',
+        kcalPer100g: 25,
+        isPantry: false
+      },
+      ing_tomato: {
+        id: 'ing_tomato',
+        name: '牛番茄',
+        category: '蔬菜蕈菇',
+        standardUnit: 'g',
+        packageSize: 400,
+        packageUnit: '盒',
+        referencePrice: 59,
+        priceSource: '全聯公開規格參考',
+        verifiedDate: '2026-10-15',
+        kcalPer100g: 19,
+        isPantry: false
+      },
+      ing_shimeji: {
+        id: 'ing_shimeji',
+        name: '鴻禧菇',
+        category: '蔬菜蕈菇',
+        standardUnit: 'g',
+        packageSize: 100,
+        packageUnit: '包',
+        referencePrice: 32,
+        priceSource: '全聯公開規格參考',
+        verifiedDate: '2026-10-15',
+        kcalPer100g: 22,
+        isPantry: false
+      },
+      ing_king_oyster: {
+        id: 'ing_king_oyster',
+        name: '杏鮑菇',
+        category: '蔬菜蕈菇',
+        standardUnit: 'g',
+        packageSize: 300,
+        packageUnit: '包',
+        referencePrice: 49,
+        priceSource: '全聯公開規格參考',
+        verifiedDate: '2026-10-15',
+        kcalPer100g: 35,
+        isPantry: false
+      },
+      ing_bok_choy: {
+        id: 'ing_bok_choy',
+        name: '青江菜',
+        category: '蔬菜蕈菇',
+        standardUnit: 'g',
+        packageSize: 250,
+        packageUnit: '包',
+        referencePrice: 35,
+        priceSource: '全聯公開規格參考',
+        verifiedDate: '2026-10-15',
+        kcalPer100g: 14,
+        isPantry: false
+      },
+      ing_carrot: {
+        id: 'ing_carrot',
+        name: '胡蘿蔔',
+        category: '蔬菜蕈菇',
+        standardUnit: 'g',
+        packageSize: 400,
+        packageUnit: '袋',
+        referencePrice: 35,
+        priceSource: '全聯公開規格參考',
+        verifiedDate: '2026-10-15',
+        kcalPer100g: 37,
+        isPantry: false
+      },
+      ing_potato: {
+        id: 'ing_potato',
+        name: '馬鈴薯',
+        category: '蔬菜蕈菇',
+        standardUnit: 'g',
+        packageSize: 500,
+        packageUnit: '袋',
+        referencePrice: 45,
+        priceSource: '全聯公開規格參考',
+        verifiedDate: '2026-10-15',
+        kcalPer100g: 77,
+        isPantry: false
+      },
+      ing_bell_pepper: {
+        id: 'ing_bell_pepper',
+        name: '彩椒',
+        category: '蔬菜蕈菇',
+        standardUnit: 'g',
+        packageSize: 300,
+        packageUnit: '袋',
+        referencePrice: 55,
+        priceSource: '全聯公開規格參考',
+        verifiedDate: '2026-10-15',
+        kcalPer100g: 26,
+        isPantry: false
+      },
+
+      // 主食穀物
+      ing_rice: {
+        id: 'ing_rice',
+        name: '台灣優質越光米',
+        category: '主食米麵',
+        standardUnit: 'g',
+        packageSize: 1000,
+        packageUnit: '包',
+        referencePrice: 89,
+        priceSource: '全聯公開規格參考',
+        verifiedDate: '2026-10-15',
+        kcalPer100g: 350,
+        isPantry: false
+      },
+      ing_noodle: {
+        id: 'ing_noodle',
+        name: '純麥手工關廟麵',
+        category: '主食米麵',
+        standardUnit: 'g',
+        packageSize: 400,
+        packageUnit: '包',
+        referencePrice: 55,
+        priceSource: '全聯公開規格參考',
+        verifiedDate: '2026-10-15',
+        kcalPer100g: 340,
+        isPantry: false
+      },
+      ing_pasta: {
+        id: 'ing_pasta',
+        name: '義大利直麵',
+        category: '主食米麵',
+        standardUnit: 'g',
+        packageSize: 500,
+        packageUnit: '包',
+        referencePrice: 69,
+        priceSource: '全聯公開規格參考',
+        verifiedDate: '2026-10-15',
+        kcalPer100g: 355,
+        isPantry: false
+      },
+
+      // 基礎常備調味料 (計入使用成本與熱量，不計入超市整週採買包數)
+      ing_pantry_oil: {
+        id: 'ing_pantry_oil',
+        name: '烹調油(橄欖油/沙拉油)',
+        category: '基礎調味',
+        standardUnit: 'ml',
+        packageSize: 10,
+        packageUnit: '份',
+        referencePrice: 2,
+        priceSource: '常備耗材攤提',
+        verifiedDate: '2026-10-15',
+        kcalPerStandardUnit: 82,
+        isPantry: true
+      },
+      ing_pantry_soysauce: {
+        id: 'ing_pantry_soysauce',
+        name: '純釀造醬油',
+        category: '基礎調味',
+        standardUnit: 'ml',
+        packageSize: 15,
+        packageUnit: '份',
+        referencePrice: 2,
+        priceSource: '常備耗材攤提',
+        verifiedDate: '2026-10-15',
+        kcalPerStandardUnit: 15,
+        isPantry: true
+      },
+      ing_pantry_salt: {
+        id: 'ing_pantry_salt',
+        name: '精鹽',
+        category: '基礎調味',
+        standardUnit: 'g',
+        packageSize: 2,
+        packageUnit: '份',
+        referencePrice: 0.2,
+        priceSource: '常備耗材攤提',
+        verifiedDate: '2026-10-15',
+        kcalPerStandardUnit: 0,
+        isPantry: true
+      },
+      ing_pantry_sugar: {
+        id: 'ing_pantry_sugar',
+        name: '二砂糖',
+        category: '基礎調味',
+        standardUnit: 'g',
+        packageSize: 5,
+        packageUnit: '份',
+        referencePrice: 0.3,
+        priceSource: '常備耗材攤提',
+        verifiedDate: '2026-10-15',
+        kcalPerStandardUnit: 20,
+        isPantry: true
+      },
+      ing_pantry_garlic: {
+        id: 'ing_pantry_garlic',
+        name: '蒜頭',
+        category: '基礎調味',
+        standardUnit: 'g',
+        packageSize: 10,
+        packageUnit: '份',
+        referencePrice: 2,
+        priceSource: '常備耗材攤提',
+        verifiedDate: '2026-10-15',
+        kcalPerStandardUnit: 14,
+        isPantry: true
+      },
+      ing_pantry_ginger: {
+        id: 'ing_pantry_ginger',
+        name: '生薑',
+        category: '基礎調味',
+        standardUnit: 'g',
+        packageSize: 10,
+        packageUnit: '份',
+        referencePrice: 2,
+        priceSource: '常備耗材攤提',
+        verifiedDate: '2026-10-15',
+        kcalPerStandardUnit: 8,
+        isPantry: true
+      },
+      ing_pantry_blackpepper: {
+        id: 'ing_pantry_blackpepper',
+        name: '黑胡椒粒',
+        category: '基礎調味',
+        standardUnit: 'g',
+        packageSize: 1,
+        packageUnit: '份',
+        referencePrice: 0.5,
+        priceSource: '常備耗材攤提',
+        verifiedDate: '2026-10-15',
+        kcalPerStandardUnit: 3,
+        isPantry: true
+      },
+      ing_pantry_sesameoil: {
+        id: 'ing_pantry_sesameoil',
+        name: '香油/麻油',
+        category: '基礎調味',
+        standardUnit: 'ml',
+        packageSize: 5,
+        packageUnit: '份',
+        referencePrice: 2,
+        priceSource: '常備耗材攤提',
+        verifiedDate: '2026-10-15',
+        kcalPerStandardUnit: 41,
+        isPantry: true
+      }
+    };
+
+    // --- 2. 料理資料庫 (20 道完整結構化一人份晚餐) ---
+    const RECIPES_DB = [
+      {
+        id: 'rec_teriyaki_chicken',
+        name: '經典日式照燒雞腿飯',
+        category: '日式定食',
+        image: '/src/assets/images/meal_teriyaki_chicken_1792268550463.jpg',
+        cookTimeMinutes: 20,
+        tags: ['高蛋白質', '主廚推薦', '下飯'],
+        allergens: ['大豆'],
+        primaryProtein: 'chicken',
+        ingredients: [
+          { ingredientId: 'ing_chicken_thigh', amount: 180, unit: 'g' },
+          { ingredientId: 'ing_onion', amount: 60, unit: 'g' },
+          { ingredientId: 'ing_broccoli', amount: 80, unit: 'g' },
+          { ingredientId: 'ing_rice', amount: 80, unit: 'g' },
+          { ingredientId: 'ing_pantry_soysauce', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_sugar', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_oil', amount: 1, unit: '份' },
+          { ingredientId: 'ing_scallion', amount: 15, unit: 'g' }
+        ],
+        steps: [
+          '白米淘洗乾淨，以 1:1 水量放入電鍋煮熟。',
+          '熱平底鍋，雞腿皮朝下小火乾煎至金黃出油，翻面續煎熟。',
+          '下洋蔥絲炒至微甜透明，加入醬油與二砂糖微火收汁至醬色光澤。',
+          '綠花椰菜汆燙後擺盤，盛入熱騰騰白飯並淋上照燒醬汁，撒上青蔥點綴。'
+        ]
+      },
+      {
+        id: 'rec_scallion_pork',
+        name: '台式熱炒蔥爆豬肉片飯',
+        category: '家常台式',
+        image: '/src/assets/images/meal_pork_stirfry_1792268551371.jpg',
+        cookTimeMinutes: 15,
+        tags: ['快炒熱騰', '台味經典', '鑊氣濃郁'],
+        allergens: ['大豆'],
+        primaryProtein: 'pork',
+        ingredients: [
+          { ingredientId: 'ing_pork_slices', amount: 150, unit: 'g' },
+          { ingredientId: 'ing_scallion', amount: 50, unit: 'g' },
+          { ingredientId: 'ing_onion', amount: 50, unit: 'g' },
+          { ingredientId: 'ing_pantry_garlic', amount: 1, unit: '份' },
+          { ingredientId: 'ing_rice', amount: 80, unit: 'g' },
+          { ingredientId: 'ing_pantry_soysauce', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_oil', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_sesameoil', amount: 1, unit: '份' }
+        ],
+        steps: [
+          '電鍋煮米飯；青蔥切長段，蒜頭切碎，洋蔥切絲。',
+          '熱鍋下少許油爆香蒜末與洋蔥絲。',
+          '轉大火下梅花肉片翻炒至八分熟，淋入純釀造醬油快速拌炒。',
+          '起鍋前加入大量青蔥段與幾滴香油，大火翻炒 15 秒即刻起鍋配飯。'
+        ]
+      },
+      {
+        id: 'rec_tomato_egg',
+        name: '暖心滑蛋牛番茄燴飯',
+        category: '家常台式',
+        image: '/src/assets/images/meal_tomato_egg_1792268551212.jpg',
+        cookTimeMinutes: 15,
+        tags: ['清爽酸甜', '經濟實惠', '蛋奶素'],
+        allergens: ['雞蛋'],
+        primaryProtein: 'egg',
+        ingredients: [
+          { ingredientId: 'ing_eggs', amount: 2, unit: '顆' },
+          { ingredientId: 'ing_tomato', amount: 160, unit: 'g' },
+          { ingredientId: 'ing_scallion', amount: 20, unit: 'g' },
+          { ingredientId: 'ing_rice', amount: 80, unit: 'g' },
+          { ingredientId: 'ing_pantry_oil', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_sugar', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_salt', amount: 1, unit: '份' }
+        ],
+        steps: [
+          '番茄洗淨切塊，雞蛋打散加少許鹽拌勻。',
+          '熱鍋加油，倒入蛋液快速滑炒至七分熟先盛起。',
+          '原鍋下番茄塊煸炒出汁，加入少許砂糖與熱水燜煮 2 分鐘。',
+          '倒回滑蛋輕柔推勻，撒上蔥花，淋在剛煮好的白飯上即可享用。'
+        ]
+      },
+      {
+        id: 'rec_pan_salmon',
+        name: '香煎檸香鮭魚定食',
+        category: '日式定食',
+        image: '/src/assets/images/meal_salmon_set_1792268551441.jpg',
+        cookTimeMinutes: 18,
+        tags: ['優質魚油', '低負擔', 'Omega-3'],
+        allergens: ['海鮮魚類'],
+        primaryProtein: 'seafood',
+        ingredients: [
+          { ingredientId: 'ing_salmon', amount: 180, unit: 'g' },
+          { ingredientId: 'ing_bok_choy', amount: 100, unit: 'g' },
+          { ingredientId: 'ing_rice', amount: 80, unit: 'g' },
+          { ingredientId: 'ing_pantry_blackpepper', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_salt', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_oil', amount: 1, unit: '份' }
+        ],
+        steps: [
+          '鮭魚排雙面用紙巾吸乾水分，抹上少許鹽與黑胡椒粒醃漬 5 分鐘。',
+          '青江菜洗淨汆燙瀝乾備用。',
+          '熱平底鍋刷薄油，魚皮朝下中小火慢煎約 4 分鐘至酥脆，翻面續煎熟透。',
+          '盛入白米飯與青江菜，放上金黃鮭魚，清爽鮮香。'
+        ]
+      },
+      {
+        id: 'rec_tofu_mushroom_pot',
+        name: '暖胃鮮菇嫩豆腐煲飯',
+        category: '暖胃湯料理',
+        image: '/src/assets/images/meal_veggie_tofu_pot_1792268552747.jpg',
+        cookTimeMinutes: 15,
+        tags: ['高纖清爽', '低卡飽足', '植物蛋白'],
+        allergens: ['大豆'],
+        primaryProtein: 'tofu',
+        ingredients: [
+          { ingredientId: 'ing_tofu_soft', amount: 200, unit: 'g' },
+          { ingredientId: 'ing_shimeji', amount: 60, unit: 'g' },
+          { ingredientId: 'ing_bok_choy', amount: 80, unit: 'g' },
+          { ingredientId: 'ing_rice', amount: 80, unit: 'g' },
+          { ingredientId: 'ing_pantry_soysauce', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_garlic', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_sesameoil', amount: 1, unit: '份' }
+        ],
+        steps: [
+          '嫩豆腐切厚片，鴻禧菇去根撕小朵。',
+          '小砂鍋或平底鍋下蒜末與香油爆香，放入鴻禧菇炒出香氣。',
+          '加入一小碗水與醬油煮滾，輕輕排入嫩豆腐與青江菜燜煮 3 分鐘。',
+          '熱騰騰淋在白飯上，湯汁清甜豆腐滑嫩，暖心無負擔。'
+        ]
+      },
+      {
+        id: 'rec_garlic_chicken_pasta',
+        name: '蒜香彩椒黑椒雞胸肉麵',
+        category: '輕食快炒',
+        image: '/src/assets/images/meal_teriyaki_chicken_1792268550463.jpg',
+        cookTimeMinutes: 18,
+        tags: ['高蛋白減脂', '飽足感', '義式清炒'],
+        allergens: [],
+        primaryProtein: 'chicken',
+        ingredients: [
+          { ingredientId: 'ing_chicken_breast', amount: 160, unit: 'g' },
+          { ingredientId: 'ing_bell_pepper', amount: 80, unit: 'g' },
+          { ingredientId: 'ing_onion', amount: 50, unit: 'g' },
+          { ingredientId: 'ing_pasta', amount: 90, unit: 'g' },
+          { ingredientId: 'ing_pantry_garlic', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_oil', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_blackpepper', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_salt', amount: 1, unit: '份' }
+        ],
+        steps: [
+          '滾水加一小匙鹽，將義大利直麵煮約 8 分鐘撈起瀝乾（保留少許煮麵水）。',
+          '雞胸肉切厚片抹鹽與黑胡椒，熱平底鍋煎熟盛起切塊。',
+          '同鍋下橄欖油爆香蒜末、洋蔥與彩椒條。',
+          '放入煮好的義大利麵、少許煮麵水與雞胸肉翻炒收汁，撒上現磨黑胡椒。'
+        ]
+      },
+      {
+        id: 'rec_potato_stew_pork',
+        name: '日式馬鈴薯燉梅花肉',
+        category: '日式定食',
+        image: '/src/assets/images/meal_pork_stirfry_1792268551371.jpg',
+        cookTimeMinutes: 25,
+        tags: ['療癒燉煮', '食材共用', '溫潤厚實'],
+        allergens: ['大豆'],
+        primaryProtein: 'pork',
+        ingredients: [
+          { ingredientId: 'ing_pork_slices', amount: 130, unit: 'g' },
+          { ingredientId: 'ing_potato', amount: 160, unit: 'g' },
+          { ingredientId: 'ing_carrot', amount: 60, unit: 'g' },
+          { ingredientId: 'ing_onion', amount: 60, unit: 'g' },
+          { ingredientId: 'ing_rice', amount: 80, unit: 'g' },
+          { ingredientId: 'ing_pantry_soysauce', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_sugar', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_oil', amount: 1, unit: '份' }
+        ],
+        steps: [
+          '馬鈴薯與胡蘿蔔削皮滾刀切塊，洋蔥切寬條。',
+          '熱鍋下少許油炒香洋蔥與豬肉片至變色。',
+          '加入馬鈴薯與胡蘿蔔塊微炒，倒入熱水、醬油與少許二砂糖沒過食材。',
+          '蓋上鍋蓋小火燉煮約 15 分鐘至馬鈴薯鬆軟入味，搭配香Ｑ白飯。'
+        ]
+      },
+      {
+        id: 'rec_golden_tofu_egg',
+        name: '金沙香煎板豆腐蓋飯',
+        category: '家常台式',
+        image: '/src/assets/images/meal_tomato_egg_1792268551212.jpg',
+        cookTimeMinutes: 15,
+        tags: ['植物蛋白', '經濟實惠', '蛋奶素'],
+        allergens: ['大豆', '雞蛋'],
+        primaryProtein: 'tofu',
+        ingredients: [
+          { ingredientId: 'ing_tofu_firm', amount: 200, unit: 'g' },
+          { ingredientId: 'ing_eggs', amount: 1, unit: '顆' },
+          { ingredientId: 'ing_scallion', amount: 25, unit: 'g' },
+          { ingredientId: 'ing_pantry_garlic', amount: 1, unit: '份' },
+          { ingredientId: 'ing_rice', amount: 80, unit: 'g' },
+          { ingredientId: 'ing_pantry_soysauce', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_oil', amount: 1, unit: '份' }
+        ],
+        steps: [
+          '傳統板豆腐用紙巾按壓去除多餘水分，切厚方塊。',
+          '鍋中熱油，將板豆腐雙面煎至金黃酥香。',
+          '打散雞蛋淋在豆腐上凝固，下蒜末與少許醬油翻炒出醬香。',
+          '撒上蔥花趁熱起鍋蓋在白米飯上，外酥內嫩。'
+        ]
+      },
+      {
+        id: 'rec_ginger_pork',
+        name: '日式生薑燒肉定食',
+        category: '日式定食',
+        image: '/src/assets/images/meal_pork_stirfry_1792268551371.jpg',
+        cookTimeMinutes: 15,
+        tags: ['暖心開胃', '經典人氣', '驅寒'],
+        allergens: ['大豆'],
+        primaryProtein: 'pork',
+        ingredients: [
+          { ingredientId: 'ing_pork_slices', amount: 140, unit: 'g' },
+          { ingredientId: 'ing_onion', amount: 70, unit: 'g' },
+          { ingredientId: 'ing_cabbage', amount: 100, unit: 'g' },
+          { ingredientId: 'ing_pantry_ginger', amount: 1, unit: '份' },
+          { ingredientId: 'ing_rice', amount: 80, unit: 'g' },
+          { ingredientId: 'ing_pantry_soysauce', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_sugar', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_oil', amount: 1, unit: '份' }
+        ],
+        steps: [
+          '生薑磨泥與醬油、少許糖調合成薑汁醬；高麗菜切細絲泡冰水備用。',
+          '熱平底鍋炒香洋蔥絲至微黃。',
+          '放入豬肉片翻炒至八分熟，淋入調好的薑汁醬快速拌炒收汁。',
+          '盤中鋪上爽脆高麗菜絲與白米飯，放上香濃薑汁豬肉。'
+        ]
+      },
+      {
+        id: 'rec_cabbage_shrimp_pasta',
+        name: '鮮甜高麗菜白蝦清炒麵',
+        category: '輕食快炒',
+        image: '/src/assets/images/meal_salmon_set_1792268551441.jpg',
+        cookTimeMinutes: 16,
+        tags: ['鮮美清炒', '優質蛋白', '高纖清爽'],
+        allergens: ['甲殼海鮮'],
+        primaryProtein: 'seafood',
+        ingredients: [
+          { ingredientId: 'ing_shrimp', amount: 90, unit: 'g' },
+          { ingredientId: 'ing_cabbage', amount: 120, unit: 'g' },
+          { ingredientId: 'ing_pasta', amount: 90, unit: 'g' },
+          { ingredientId: 'ing_pantry_garlic', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_oil', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_blackpepper', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_salt', amount: 1, unit: '份' }
+        ],
+        steps: [
+          '義大利麵入滾水鍋煮 8 分鐘瀝乾。',
+          '鍋中熱油爆香蒜片，下白蝦仁煎至雙面轉紅先盛出。',
+          '放入高麗菜片翻炒至軟甜多汁，加入煮麵水與鹽調味。',
+          '倒入麵條與熟蝦仁拌炒均勻，撒上黑胡椒粒即可上桌。'
+        ]
+      },
+      {
+        id: 'rec_mushroom_chicken_soup_noodle',
+        name: '鮮菇高麗菜暖心雞湯麵',
+        category: '暖胃湯料理',
+        image: '/src/assets/images/meal_veggie_tofu_pot_1792268552747.jpg',
+        cookTimeMinutes: 18,
+        tags: ['低卡暖胃', '舒心補氣', '湯麵'],
+        allergens: [],
+        primaryProtein: 'chicken',
+        ingredients: [
+          { ingredientId: 'ing_chicken_breast', amount: 140, unit: 'g' },
+          { ingredientId: 'ing_shimeji', amount: 50, unit: 'g' },
+          { ingredientId: 'ing_cabbage', amount: 100, unit: 'g' },
+          { ingredientId: 'ing_noodle', amount: 90, unit: 'g' },
+          { ingredientId: 'ing_scallion', amount: 15, unit: 'g' },
+          { ingredientId: 'ing_pantry_ginger', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_salt', amount: 1, unit: '份' }
+        ],
+        steps: [
+          '雞胸肉切厚片；鴻禧菇洗淨去根撕開；高麗菜手撕大片。',
+          '湯鍋加水 500ml 與薑片煮滾，下雞胸肉、鴻禧菇與高麗菜慢火煨煮 5 分鐘。',
+          '加一小匙鹽調味成鮮美清雞湯。',
+          '另起小鍋煮熟關廟麵撈入大碗，澆入雞湯與配料，撒上蔥花。'
+        ]
+      },
+      {
+        id: 'rec_shredded_pork_noodle',
+        name: '蔥香肉絲時蔬乾拌麵',
+        category: '家常台式',
+        image: '/src/assets/images/meal_pork_stirfry_1792268551371.jpg',
+        cookTimeMinutes: 14,
+        tags: ['十分鐘快手', '香氣撲鼻', '經典小吃'],
+        allergens: ['大豆'],
+        primaryProtein: 'pork',
+        ingredients: [
+          { ingredientId: 'ing_pork_loin', amount: 120, unit: 'g' },
+          { ingredientId: 'ing_bok_choy', amount: 80, unit: 'g' },
+          { ingredientId: 'ing_scallion', amount: 25, unit: 'g' },
+          { ingredientId: 'ing_noodle', amount: 90, unit: 'g' },
+          { ingredientId: 'ing_pantry_garlic', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_soysauce', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_sesameoil', amount: 1, unit: '份' }
+        ],
+        steps: [
+          '滾水下麵條煮熟撈起放入碗中，燙熟青江菜備用。',
+          '熱平底鍋加油爆香蒜末與蔥段，加入里肌豬肉絲快速煸炒。',
+          '淋入純釀造醬油與少許香油熗香，連同香濃肉汁一起淋在麵上。',
+          '伴隨青江菜充分拌勻即可享用。'
+        ]
+      },
+      {
+        id: 'rec_veggie_egg_rice',
+        name: '鮮蔬高麗菜滑蛋炒飯',
+        category: '家常台式',
+        image: '/src/assets/images/meal_tomato_egg_1792268551212.jpg',
+        cookTimeMinutes: 15,
+        tags: ['冰箱救星', '纖維滿滿', '蛋奶素'],
+        allergens: ['雞蛋'],
+        primaryProtein: 'egg',
+        ingredients: [
+          { ingredientId: 'ing_eggs', amount: 2, unit: '顆' },
+          { ingredientId: 'ing_cabbage', amount: 80, unit: 'g' },
+          { ingredientId: 'ing_carrot', amount: 40, unit: 'g' },
+          { ingredientId: 'ing_scallion', amount: 20, unit: 'g' },
+          { ingredientId: 'ing_rice', amount: 80, unit: 'g' },
+          { ingredientId: 'ing_pantry_oil', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_salt', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_blackpepper', amount: 1, unit: '份' }
+        ],
+        steps: [
+          '高麗菜切小丁，胡蘿蔔切碎丁，青蔥切花。',
+          '熱鍋下油炒散雞蛋至蓬鬆金黃。',
+          '加入胡蘿蔔與高麗菜丁翻炒至斷生變甜。',
+          '下白飯大火壓散翻炒均勻，加鹽與黑胡椒提味，起鍋前撒入蔥花。'
+        ]
+      },
+      {
+        id: 'rec_blackpepper_pork_loin',
+        name: '黑胡椒洋蔥彩椒炒肉絲',
+        category: '輕食快炒',
+        image: '/src/assets/images/meal_pork_stirfry_1792268551371.jpg',
+        cookTimeMinutes: 15,
+        tags: ['鑊氣十足', '微辛下飯', '清爽不膩'],
+        allergens: ['大豆'],
+        primaryProtein: 'pork',
+        ingredients: [
+          { ingredientId: 'ing_pork_loin', amount: 130, unit: 'g' },
+          { ingredientId: 'ing_onion', amount: 60, unit: 'g' },
+          { ingredientId: 'ing_bell_pepper', amount: 70, unit: 'g' },
+          { ingredientId: 'ing_rice', amount: 80, unit: 'g' },
+          { ingredientId: 'ing_pantry_garlic', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_soysauce', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_blackpepper', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_oil', amount: 1, unit: '份' }
+        ],
+        steps: [
+          '洋蔥切絲，彩椒切長條，蒜頭拍碎。',
+          '熱平底鍋加油爆香蒜頭與洋蔥絲。',
+          '放入里肌豬肉絲翻炒至變白，加入彩椒條同炒。',
+          '淋入醬油與大量現磨黑胡椒粒，大火炒勻起鍋佐白飯。'
+        ]
+      },
+      {
+        id: 'rec_broccoli_chicken_rice',
+        name: '綠花椰蒜香嫩煎雞胸飯',
+        category: '輕食快炒',
+        image: '/src/assets/images/meal_teriyaki_chicken_1792268550463.jpg',
+        cookTimeMinutes: 18,
+        tags: ['健身首選', '乾淨飲食', '高蛋白'],
+        allergens: [],
+        primaryProtein: 'chicken',
+        ingredients: [
+          { ingredientId: 'ing_chicken_breast', amount: 170, unit: 'g' },
+          { ingredientId: 'ing_broccoli', amount: 110, unit: 'g' },
+          { ingredientId: 'ing_rice', amount: 80, unit: 'g' },
+          { ingredientId: 'ing_pantry_garlic', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_oil', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_salt', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_blackpepper', amount: 1, unit: '份' }
+        ],
+        steps: [
+          '花椰菜切小朵汆燙 2 分鐘撈起。',
+          '雞胸肉切厚塊，抹鹽、黑胡椒粒與蒜碎醃 5 分鐘。',
+          '熱平底鍋刷橄欖油，雞胸肉塊煎至各面微金黃熟透（約 5 分鐘）。',
+          '放入花椰菜同炒吸收蒜香肉汁，盛入白飯碗中即成減脂名菜。'
+        ]
+      },
+      {
+        id: 'rec_king_oyster_pork',
+        name: '醬燒杏鮑菇豬肉片定食',
+        category: '家常台式',
+        image: '/src/assets/images/meal_pork_stirfry_1792268551371.jpg',
+        cookTimeMinutes: 16,
+        tags: ['多汁爽脆', '家常鹹香'],
+        allergens: ['大豆'],
+        primaryProtein: 'pork',
+        ingredients: [
+          { ingredientId: 'ing_pork_slices', amount: 130, unit: 'g' },
+          { ingredientId: 'ing_king_oyster', amount: 100, unit: 'g' },
+          { ingredientId: 'ing_scallion', amount: 20, unit: 'g' },
+          { ingredientId: 'ing_rice', amount: 80, unit: 'g' },
+          { ingredientId: 'ing_pantry_soysauce', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_sugar', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_oil', amount: 1, unit: '份' }
+        ],
+        steps: [
+          '杏鮑菇滾刀切滾塊，青蔥切段。',
+          '平底鍋少油先將杏鮑菇乾煎至微出水且表面焦黃帶香。',
+          '撥至鍋邊，下豬肉片翻炒熟透。',
+          '淋入醬油與砂糖調味，撒上蔥段大火炒至醬汁濃稠掛汁，香氣撲鼻。'
+        ]
+      },
+      {
+        id: 'rec_miso_tofu_veggie_rice',
+        name: '清雅鮮菇野菜豆腐湯泡飯',
+        category: '暖胃湯料理',
+        image: '/src/assets/images/meal_veggie_tofu_pot_1792268552747.jpg',
+        cookTimeMinutes: 15,
+        tags: ['純淨無負擔', '暖心宵夜', '低油鹽'],
+        allergens: ['大豆'],
+        primaryProtein: 'tofu',
+        ingredients: [
+          { ingredientId: 'ing_tofu_firm', amount: 180, unit: 'g' },
+          { ingredientId: 'ing_shimeji', amount: 50, unit: 'g' },
+          { ingredientId: 'ing_bok_choy', amount: 80, unit: 'g' },
+          { ingredientId: 'ing_rice', amount: 80, unit: 'g' },
+          { ingredientId: 'ing_scallion', amount: 15, unit: 'g' },
+          { ingredientId: 'ing_pantry_soysauce', amount: 1, unit: '份' }
+        ],
+        steps: [
+          '板豆腐切方丁，鴻禧菇洗淨去蒂，青江菜剖半。',
+          '鍋中加水 450ml 煮滾，放入鴻禧菇與板豆腐慢滾 4 分鐘釋放甜味。',
+          '加入少許純釀造醬油提鮮，放入青江菜燙綠。',
+          '將剛煮好的熱白飯裝碗，淋入清甜豆腐時蔬熱湯，撒上蔥花。'
+        ]
+      },
+      {
+        id: 'rec_tomato_chicken_stew',
+        name: '茄汁洋蔥燉雞腿肉飯',
+        category: '異國風味',
+        image: '/src/assets/images/meal_tomato_egg_1792268551212.jpg',
+        cookTimeMinutes: 22,
+        tags: ['酸甜開胃', '食材共用', '茄紅素'],
+        allergens: [],
+        primaryProtein: 'chicken',
+        ingredients: [
+          { ingredientId: 'ing_chicken_thigh', amount: 160, unit: 'g' },
+          { ingredientId: 'ing_tomato', amount: 150, unit: 'g' },
+          { ingredientId: 'ing_onion', amount: 60, unit: 'g' },
+          { ingredientId: 'ing_rice', amount: 80, unit: 'g' },
+          { ingredientId: 'ing_pantry_garlic', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_oil', amount: 1, unit: '份' },
+          { ingredientId: 'ing_pantry_salt', amount: 1, unit: '份' }
+        ],
+        steps: [
+          '雞腿排切大塊抹鹽；番茄切丁，洋蔥切絲。',
+          '鍋中下油爆香蒜碎與洋蔥絲。',
+          '放入雞肉塊煎至表面微金黃。',
+          '加入番茄丁與小半碗水，蓋上鍋蓋小火慢燉 12 分鐘至番茄成濃郁紅醬，佐白飯開胃滿足。'
+        ]
+      }
+    ];
+
+    // --- 3. 狀態儲存與 LocalStorage 管理 (State Management) ---
+    const STORAGE_KEY = 'mealplanner_vibe_state_v1';
+    const SCHEMA_VERSION = '1.2.0';
+
+    const defaultState = {
+      schemaVersion: SCHEMA_VERSION,
+      preferences: {
+        budget: 1000,
+        dietGoal: '均衡飲食',
+        likedIngredients: ['雞胸肉', '雞蛋', '洋蔥', '綠花椰菜'],
+        dislikedIngredients: [],
+        allergens: [],
+        cuisineStyle: '綜合家常',
+        activityLevel: '輕度活動',
+        height: 172,
+        weight: 65,
+        recommendationMode: 'local', // 'local' or 'ai'
+        workerUrl: ''
+      },
+      currentWeekOffset: 0, // 0: this week, 1: next week
+      weeklyMenus: {}, // Keyed by weekId: e.g. "2026-W42" -> [{ date, recipeId, status, reason, completedAt, rating, actualSpend }]
+      draftMenu: null, // Temporary draft for approval
+      groceryCheckedState: {}, // Keyed by ingredientId -> boolean
+      mealHistory: [] // [{ date, recipeId, recipeName, kcal, cost, rating, notes, actualSpend, timestamp }]
+    };
+
+    let appState = loadState();
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return JSON.parse(JSON.stringify(defaultState));
+        const parsed = JSON.parse(raw);
+        // Schema migrations & safety checks
+        if (!parsed.schemaVersion || !parsed.preferences) {
+          return { ...defaultState, ...parsed, schemaVersion: SCHEMA_VERSION };
+        }
+        return parsed;
+      } catch (e) {
+        console.error('Failed to load localStorage, returning safe default:', e);
+        return JSON.parse(JSON.stringify(defaultState));
+      }
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+      } catch (e) {
+        console.error('Error saving state to localStorage:', e);
+        showToast('儲存資料失敗，請檢查瀏覽器容量空間', 'error');
+      }
+    }
+
+    // --- 4. 核心計算引擎 (Engine: Usage Cost, Packaged Cost, Calories) ---
+
+    // 計算單道料理之估計熱量 (kcal)
+    function calculateRecipeNutrition(recipe) {
+      if (!recipe || !recipe.ingredients) return 0;
+      let totalKcal = 0;
+      for (const item of recipe.ingredients) {
+        const ing = INGREDIENTS_DB[item.ingredientId];
+        if (!ing) continue;
+        if (ing.kcalPerStandardUnit !== undefined) {
+          totalKcal += item.amount * ing.kcalPerStandardUnit;
+        } else if (ing.kcalPer100g !== undefined) {
+          totalKcal += (item.amount / 100) * ing.kcalPer100g;
+        }
+      }
+      return Math.round(totalKcal);
+    }
+
+    // 計算單道料理之「食材實際使用成本」 (依比例)
+    function calculateRecipeIngredientCost(recipe) {
+      if (!recipe || !recipe.ingredients) return 0;
+      let cost = 0;
+      for (const item of recipe.ingredients) {
+        const ing = INGREDIENTS_DB[item.ingredientId];
+        if (!ing) continue;
+        if (ing.isPantry) {
+          cost += ing.referencePrice * item.amount;
+        } else {
+          cost += (item.amount / ing.packageSize) * ing.referencePrice;
+        }
+      }
+      return Math.round(cost);
+    }
+
+    // 依據一週 7 天料理清單，計算「食材合併、超市完整包裝換算、採買成本與剩餘量」
+    function calculateWeeklyGroceryPlan(dayDishes) {
+      // 1. 合併相同食材
+      const aggregated = {};
+
+      for (const day of dayDishes) {
+        const recipe = RECIPES_DB.find(r => r.id === day.recipeId);
+        if (!recipe) continue;
+        for (const item of recipe.ingredients) {
+          const ing = INGREDIENTS_DB[item.ingredientId];
+          if (!ing) continue;
+          if (!aggregated[ing.id]) {
+            aggregated[ing.id] = {
+              ingredient: ing,
+              totalAmount: 0,
+              usedInDishes: []
+            };
+          }
+          aggregated[ing.id].totalAmount += item.amount;
+          if (!aggregated[ing.id].usedInDishes.includes(recipe.name)) {
+            aggregated[ing.id].usedInDishes.push(recipe.name);
+          }
+        }
+      }
+
+      // 2. 分開計算：超市整週採買成本 (B) 與 實際使用成本 (A)
+      let totalGroceryCost = 0; // Packaged
+      let totalUsageCost = 0;    // Proportional
+      const groceryList = [];
+
+      for (const ingId in aggregated) {
+        const item = aggregated[ingId];
+        const ing = item.ingredient;
+
+        // 實際使用成本
+        const usageCost = ing.isPantry
+          ? ing.referencePrice * item.totalAmount
+          : (item.totalAmount / ing.packageSize) * ing.referencePrice;
+        totalUsageCost += usageCost;
+
+        // 若為基礎調味料，不列入超市包裝採買清單
+        if (ing.isPantry) continue;
+
+        // 包裝換算：購買包數 = ceil(整週需求量 ÷ 單包容量)
+        const packagesToBuy = Math.ceil(item.totalAmount / ing.packageSize);
+        const packagedCost = packagesToBuy * ing.referencePrice;
+        const surplusAmount = (packagesToBuy * ing.packageSize) - item.totalAmount;
+
+        totalGroceryCost += packagedCost;
+
+        groceryList.push({
+          id: ing.id,
+          name: ing.name,
+          category: ing.category,
+          totalAmount: Math.round(item.totalAmount * 10) / 10,
+          unit: ing.standardUnit,
+          packageSize: ing.packageSize,
+          packageUnit: ing.packageUnit,
+          packagesToBuy,
+          referencePrice: ing.referencePrice,
+          packagedCost,
+          surplusAmount: Math.round(surplusAmount * 10) / 10,
+          usedInDishes: item.usedInDishes,
+          checked: !!appState.groceryCheckedState[ing.id]
+        });
+      }
+
+      // 依分類排序：肉類海鮮 > 蛋豆 > 蔬菜 > 主食
+      const catOrder = { '肉類海鮮': 1, '蛋豆製品': 2, '蔬菜蕈菇': 3, '主食米麵': 4 };
+      groceryList.sort((a, b) => (catOrder[a.category] || 9) - (catOrder[b.category] || 9));
+
+      return {
+        groceryList,
+        totalGroceryCost: Math.round(totalGroceryCost),
+        totalUsageCost: Math.round(totalUsageCost)
+      };
+    }
+
+    // --- 5. 智慧推薦演算法 (Local Recommendation Algorithm & AI Proxy) ---
+
+    // 取得當週日期陣列 (週一至週日)
+    function getWeekDates(weekOffset = 0) {
+      const now = new Date();
+      // Adjust to Monday
+      const dayOfWeek = now.getDay(); // 0 is Sunday
+      const diffToMonday = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek;
+      const monday = new Date(now);
+      monday.setDate(now.getDate() + diffToMonday + (weekOffset * 7));
+
+      const dates = [];
+      const dayNames = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
+
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        dates.push({
+          dateStr: `${yyyy}-${mm}-${dd}`,
+          displayDay: dayNames[i],
+          fullDisplay: `${yyyy}/${mm}/${dd} (${dayNames[i]})`
+        });
+      }
+      return dates;
+    }
+
+    function getWeekKey(weekOffset = 0) {
+      const dates = getWeekDates(weekOffset);
+      return `WEEK_${dates[0].dateStr}`;
+    }
+
+    // 檢查料理是否違反過敏與忌口限制
+    function isRecipeAllowed(recipe, preferences) {
+      // 1. 嚴格檢查過敏原
+      if (preferences.allergens && preferences.allergens.length > 0) {
+        for (const allergen of preferences.allergens) {
+          if (recipe.allergens && recipe.allergens.includes(allergen)) {
+            return false;
+          }
+        }
+      }
+      // 2. 檢查討厭食材
+      if (preferences.dislikedIngredients && preferences.dislikedIngredients.length > 0) {
+        for (const disliked of preferences.dislikedIngredients) {
+          const trimmed = disliked.trim().toLowerCase();
+          if (!trimmed) continue;
+          for (const item of recipe.ingredients) {
+            const ing = INGREDIENTS_DB[item.ingredientId];
+            if (ing && ing.name.toLowerCase().includes(trimmed)) {
+              return false;
+            }
+          }
+        }
+      }
+      return true;
+    }
+
+    // 智能本地推薦演算法
+    function generateLocalWeeklyPlan(preferences, existingDays = []) {
+      const dates = getWeekDates(appState.currentWeekOffset);
+      
+      // 1. 過濾出所有允許的料理
+      const allowedRecipes = RECIPES_DB.filter(r => isRecipeAllowed(r, preferences));
+      
+      if (allowedRecipes.length < 3) {
+        throw new Error('您設定的過敏或忌口條件過於嚴格，目前可用料理庫不足，請適度放寬忌口限制。');
+      }
+
+      // 取得歷史用餐評分以加權
+      const ratingsMap = {};
+      appState.mealHistory.forEach(h => {
+        if (h.rating) ratingsMap[h.recipeId] = (ratingsMap[h.recipeId] || 0) + h.rating;
+      });
+
+      // 檢查哪些日期已完成或需要保留
+      const finalDays = [];
+      const usedRecipeIds = [];
+
+      for (let i = 0; i < 7; i++) {
+        const dateInfo = dates[i];
+        const existing = existingDays.find(d => d.date === dateInfo.dateStr);
+
+        // 若該日已完成，絕對保留不可覆蓋！
+        if (existing && existing.status === 'completed') {
+          finalDays.push(existing);
+          usedRecipeIds.push(existing.recipeId);
+          continue;
+        }
+
+        // 為未完成之日期評分所有可用料理
+        let candidates = allowedRecipes.map(recipe => {
+          let score = 50;
+
+          // 喜歡食材加分
+          if (preferences.likedIngredients) {
+            for (const liked of preferences.likedIngredients) {
+              const trimmed = liked.trim();
+              if (trimmed && recipe.ingredients.some(it => INGREDIENTS_DB[it.ingredientId]?.name.includes(trimmed))) {
+                score += 15;
+              }
+            }
+          }
+
+          // 飲食目標加分
+          if (preferences.dietGoal === '高蛋白質增肌' && ['chicken', 'seafood'].includes(recipe.primaryProtein)) {
+            score += 12;
+          } else if (preferences.dietGoal === '清爽高纖低負擔' && ['tofu', 'egg'].includes(recipe.primaryProtein)) {
+            score += 12;
+          }
+
+          // 偏好料理風格加分
+          if (preferences.cuisineStyle && preferences.cuisineStyle.includes(recipe.category)) {
+            score += 10;
+          }
+
+          // 歷史評分加分 (5星好評 +15, 1星 -30)
+          if (ratingsMap[recipe.id]) {
+            score += ratingsMap[recipe.id] * 3;
+          }
+
+          // 避免在同一週連續重複相同的菜色
+          if (usedRecipeIds.includes(recipe.id)) {
+            score -= 60;
+          }
+
+          // 蛋白質輪替加權 (若前一天是 chicken，避免隔天又是 chicken)
+          const lastDay = finalDays[finalDays.length - 1];
+          if (lastDay) {
+            const lastRecipe = RECIPES_DB.find(r => r.id === lastDay.recipeId);
+            if (lastRecipe && lastRecipe.primaryProtein === recipe.primaryProtein) {
+              score -= 25;
+            }
+          }
+
+          return { recipe, score };
+        });
+
+        // 依分數高低排序並加入少許偽隨機性避免固定排序
+        candidates.sort((a, b) => (b.score + (Math.random() * 8)) - (a.score + (Math.random() * 8)));
+
+        // 挑選最佳候選
+        const chosen = candidates[0].recipe;
+        usedRecipeIds.push(chosen.id);
+
+        let reason = '均衡搭配';
+        if (chosen.primaryProtein === 'chicken') reason = '優質雞肉蛋白，高飽足低負擔';
+        else if (chosen.primaryProtein === 'pork') reason = '台味家常肉香，滿足感十足';
+        else if (chosen.primaryProtein === 'seafood') reason = '豐富 Omega-3，清爽無負擔';
+        else if (chosen.primaryProtein === 'tofu') reason = '植物蛋白清爽好消化，省錢首選';
+        else if (chosen.primaryProtein === 'egg') reason = '滑蛋濃郁多汁，經濟實惠';
+
+        finalDays.push({
+          date: dateInfo.dateStr,
+          recipeId: chosen.id,
+          status: 'planned',
+          reason: `本地推薦：${reason}`
+        });
+      }
+
+      return finalDays;
+    }
+
+    // 產生或重新規劃菜單 (分流 AI 與 本地)
+    async function planWeeklyMenu(forceNew = false) {
+      showLoading(true, '正在規劃七日晚餐...', '正在為您計算最佳食材共用與採買包裝');
+      const weekKey = getWeekKey(appState.currentWeekOffset);
+      const existingMenu = appState.weeklyMenus[weekKey] || [];
+      const preferences = appState.preferences;
+
+      try {
+        let newPlan = null;
+
+        // 若啟用 AI 推薦且有設定 Worker URL
+        if (preferences.recommendationMode === 'ai' && preferences.workerUrl) {
+          try {
+            newPlan = await fetchGeminiMenuFromWorker(preferences, existingMenu);
+          } catch (aiErr) {
+            console.warn('AI API failed, falling back to local algorithm:', aiErr);
+            showToast('AI 代理回應失敗，自動切換至智能本地推薦演算法', 'info');
+            newPlan = generateLocalWeeklyPlan(preferences, existingMenu);
+          }
+        } else {
+          // 使用純本地推薦演算法
+          newPlan = generateLocalWeeklyPlan(preferences, existingMenu);
+        }
+
+        // 驗證新計畫之有效性
+        if (!newPlan || newPlan.length !== 7) {
+          throw new Error('產生的菜單天數不符合 7 日規範');
+        }
+
+        // 檢查預算
+        const groceryCheck = calculateWeeklyGroceryPlan(newPlan);
+        
+        // 暫存為草稿並顯示草稿確認彈窗
+        appState.draftMenu = {
+          weekKey,
+          days: newPlan,
+          groceryTotal: groceryCheck.totalGroceryCost,
+          usageTotal: groceryCheck.totalUsageCost
+        };
+
+        renderReplanDraftModal();
+      } catch (err) {
+        console.error('Menu planning failed:', err);
+        showToast(err.message || '菜單規劃失敗，請檢查設定', 'error');
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    // 呼叫 Cloudflare Worker 取得 Gemini AI 推薦
+    async function fetchGeminiMenuFromWorker(preferences, existingMenu) {
+      const dates = getWeekDates(appState.currentWeekOffset).map(d => d.dateStr);
+      const availableRecipes = RECIPES_DB
+        .filter(r => isRecipeAllowed(r, preferences))
+        .map(r => ({ id: r.id, name: r.name, category: r.category, protein: r.primaryProtein }));
+
+      const payload = {
+        action: 'generate_week',
+        preferences,
+        availableRecipes,
+        dates
+      };
+
+      const resp = await fetch(preferences.workerUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!resp.ok) {
+        throw new Error(`Worker HTTP ${resp.status}`);
+      }
+
+      const data = await resp.json();
+      if (!data.days || !Array.isArray(data.days)) {
+        throw new Error('AI 回傳格式不符合預期');
+      }
+
+      // 由 JavaScript 嚴格驗證 AI 回傳的 recipeId 與過敏限制
+      const verifiedDays = [];
+      for (const d of data.days) {
+        const recipe = RECIPES_DB.find(r => r.id === d.recipeId);
+        if (!recipe || !isRecipeAllowed(recipe, preferences)) {
+          // AI 挑了無效或禁用的料理，退回本地安全料理
+          const fallback = RECIPES_DB.find(r => isRecipeAllowed(r, preferences));
+          verifiedDays.push({
+            date: d.date,
+            recipeId: fallback.id,
+            status: 'planned',
+            reason: 'AI 修正推薦：符合安全忌口'
+          });
+        } else {
+          verifiedDays.push({
+            date: d.date,
+            recipeId: recipe.id,
+            status: 'planned',
+            reason: `AI 推薦：${d.reason || '營養均衡'}`
+          });
+        }
+      }
+
+      // 保留已完成之日期
+      for (let i = 0; i < verifiedDays.length; i++) {
+        const existing = existingMenu.find(e => e.date === verifiedDays[i].date);
+        if (existing && existing.status === 'completed') {
+          verifiedDays[i] = existing;
+        }
+      }
+
+      return verifiedDays;
+    }
+
+    // --- 6. UI 渲染器 (UI Renderer) ---
+
+    // 渲染本週七日卡片
+    function renderSevenDayMenu() {
+      const grid = document.getElementById('meal-cards-grid');
+      const weekKey = getWeekKey(appState.currentWeekOffset);
+      const currentMenu = appState.weeklyMenus[weekKey] || [];
+      const dates = getWeekDates(appState.currentWeekOffset);
+
+      // 更新日期範圍標題
+      document.getElementById('label-date-range').innerText = 
+        `${dates[0].displayDay} ${dates[0].dateStr} ~ ${dates[6].displayDay} ${dates[6].dateStr}`;
+
+      // 若尚未有菜單，顯示友善空狀態
+      if (currentMenu.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full py-16 text-center bg-white rounded-3xl border border-dashed border-stone-300 p-8 space-y-4">
+            <div class="text-4xl">🍲</div>
+            <div class="text-lg font-bold text-stone-800">本週尚未規劃晚餐菜單</div>
+            <p class="text-xs text-stone-500 max-w-md mx-auto">
+              立即點擊下方按鈕，系統將自動依據您的飲食偏好、過敏排除與預算目標，智能計算一週七日晚餐與食材共用採買清單。
+            </p>
+            <button id="btn-empty-generate" class="px-6 py-2.5 bg-sage-600 hover:bg-sage-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors">
+              ✨ 立即產生本週菜單
+            </button>
+          </div>
+        `;
+        document.getElementById('btn-empty-generate')?.addEventListener('click', () => planWeeklyMenu());
+        updateKpis([]);
+        return;
+      }
+
+      // 渲染 7 日晚餐卡片
+      grid.innerHTML = currentMenu.map((dayItem, index) => {
+        const dateInfo = dates.find(d => d.dateStr === dayItem.date) || dates[index];
+        const recipe = RECIPES_DB.find(r => r.id === dayItem.recipeId) || RECIPES_DB[0];
+        const kcal = calculateRecipeNutrition(recipe);
+        const cost = calculateRecipeIngredientCost(recipe);
+        const isCompleted = dayItem.status === 'completed';
+        const isSkipped = dayItem.status === 'skipped';
+
+        const statusBadge = isCompleted
+          ? '<span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">✓ 已完成</span>'
+          : isSkipped
+          ? '<span class="text-[11px] font-medium text-stone-400 bg-stone-100 px-2 py-0.5 rounded">未食用</span>'
+          : '<span class="text-[11px] font-medium text-stone-600 bg-stone-50 px-2 py-0.5 rounded">已規劃</span>';
+
+        // 主要食材清單文字
+        const mainIngNames = recipe.ingredients
+          .slice(0, 3)
+          .map(it => INGREDIENTS_DB[it.ingredientId]?.name)
+          .filter(Boolean)
+          .join(' · ');
+
+        return `
+          <div class="bg-white rounded-2xl border ${isCompleted ? 'border-emerald-300 ring-1 ring-emerald-100' : 'border-stone-200'} shadow-xs overflow-hidden flex flex-col transition-all hover:shadow-md">
+            
+            <!-- Card Header: Day & Date -->
+            <div class="px-4 py-3 bg-stone-50/80 border-b border-stone-100 flex items-center justify-between">
+              <div>
+                <span class="font-bold text-stone-900 text-sm">${dateInfo.displayDay}</span>
+                <span class="text-xs text-stone-400 ml-1.5 font-mono">${dateInfo.dateStr}</span>
+              </div>
+              <div>${statusBadge}</div>
+            </div>
+
+            <!-- Recipe Image Slot (Authentic Culinary Photo with Clean SVG Fallback) -->
+            <div class="relative h-44 w-full bg-stone-100 overflow-hidden cursor-pointer btn-view-recipe-detail" data-id="${recipe.id}">
+              <img 
+                src="${recipe.image}" 
+                alt="${recipe.name}" 
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                class="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'400\\' height=\\'300\\' viewBox=\\'0 0 400 300\\' fill=\\'%23F4F7F5\\'><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' font-family=\\'sans-serif\\' font-size=\\'18\\' fill=\\'%234A6B5D\\'>🍳 ${encodeURIComponent(recipe.name)}</text></svg>';"
+              />
+              <div class="absolute bottom-2 left-2 bg-stone-900/80 backdrop-blur-xs text-white text-[11px] font-medium px-2 py-0.5 rounded">
+                ${recipe.category}
+              </div>
+            </div>
+
+            <!-- Card Body -->
+            <div class="p-4 flex-1 flex flex-col justify-between space-y-3">
+              <div>
+                <h3 class="font-bold text-stone-900 text-base leading-snug hover:text-sage-700 cursor-pointer btn-view-recipe-detail" data-id="${recipe.id}">
+                  ${recipe.name}
+                </h3>
+                <div class="text-[11px] text-stone-500 mt-1 truncate">
+                  主要食材：${mainIngNames}
+                </div>
+                
+                <!-- Nutritional & Cost figures -->
+                <div class="flex items-center gap-3 text-xs text-stone-600 mt-2 font-mono">
+                  <span>約 <strong class="text-stone-900">${kcal}</strong> kcal</span>
+                  <span class="text-stone-300">|</span>
+                  <span>使用成本約 <strong class="text-stone-900">NT$ ${cost}</strong></span>
+                </div>
+
+                <!-- Recommendation Reason -->
+                <div class="mt-2.5 text-[11px] text-stone-500 bg-stone-50 p-2 rounded-lg border border-stone-100 line-clamp-2">
+                  💡 ${dayItem.reason || '符合飲食偏好與食材共用原則'}
+                </div>
+              </div>
+
+              <!-- Interactive Actions -->
+              <div class="pt-2 border-t border-stone-100 flex items-center justify-between gap-2 text-xs">
+                <button class="btn-view-recipe-detail text-stone-600 hover:text-stone-900 font-medium py-1 px-1.5" data-id="${recipe.id}">
+                  查看詳情
+                </button>
+
+                <div class="flex items-center gap-1.5">
+                  ${isCompleted ? `
+                    <button class="btn-toggle-status text-xs text-stone-400 hover:text-stone-700 py-1 px-2 rounded" data-date="${dayItem.date}" data-action="unmark">
+                      取消完成
+                    </button>
+                  ` : `
+                    <button class="btn-open-replace text-xs text-stone-600 hover:bg-stone-100 py-1 px-2 rounded-lg transition-colors border border-stone-200" data-date="${dayItem.date}" data-id="${recipe.id}">
+                      替換
+                    </button>
+                    <button class="btn-mark-complete text-xs font-semibold text-white bg-sage-600 hover:bg-sage-700 py-1 px-2.5 rounded-lg shadow-xs transition-colors" data-date="${dayItem.date}">
+                      標記已吃
+                    </button>
+                  `}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // 綁定卡片內按鈕事件
+      document.querySelectorAll('.btn-view-recipe-detail').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = e.currentTarget.getAttribute('data-id');
+          openRecipeDetailModal(id);
+        });
+      });
+
+      document.querySelectorAll('.btn-open-replace').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const date = e.currentTarget.getAttribute('data-date');
+          const id = e.currentTarget.getAttribute('data-id');
+          openReplaceModal(date, id);
+        });
+      });
+
+      document.querySelectorAll('.btn-mark-complete').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const date = e.currentTarget.getAttribute('data-date');
+          openMealRatingModal(date);
+        });
+      });
+
+      document.querySelectorAll('.btn-toggle-status').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const date = e.currentTarget.getAttribute('data-date');
+          unmarkMealCompletion(date);
+        });
+      });
+
+      // 更新頂部 KPI
+      updateKpis(currentMenu);
+    }
+
+    // 更新頂部 KPI 指標卡片
+    function updateKpis(menu) {
+      const budget = appState.preferences.budget || 1000;
+      document.getElementById('kpi-budget-amount').innerText = budget.toLocaleString();
+
+      if (!menu || menu.length === 0) {
+        document.getElementById('kpi-grocery-total').innerText = '0';
+        document.getElementById('kpi-usage-total').innerText = '0';
+        document.getElementById('kpi-budget-percent').innerText = '0%';
+        document.getElementById('kpi-budget-progress-bar').style.width = '0%';
+        document.getElementById('kpi-budget-status-msg').innerHTML = '<span class="text-stone-400">尚未安排菜單</span>';
+        document.getElementById('kpi-completed-count').innerText = '0';
+        document.getElementById('kpi-avg-meal-cost').innerText = 'NT$ 0';
+        document.getElementById('kpi-avg-calories').innerText = '約 0 kcal';
+        document.getElementById('budget-alert-banner').classList.add('hidden');
+        return;
+      }
+
+      const plan = calculateWeeklyGroceryPlan(menu);
+      const groceryTotal = plan.totalGroceryCost;
+      const usageTotal = plan.totalUsageCost;
+      const completedCount = menu.filter(m => m.status === 'completed').length;
+
+      // 熱量計算
+      let sumKcal = 0;
+      menu.forEach(m => {
+        const r = RECIPES_DB.find(x => x.id === m.recipeId);
+        if (r) sumKcal += calculateRecipeNutrition(r);
+      });
+      const avgKcal = Math.round(sumKcal / menu.length);
+
+      document.getElementById('kpi-grocery-total').innerText = groceryTotal.toLocaleString();
+      document.getElementById('kpi-usage-total').innerText = usageTotal.toLocaleString();
+      document.getElementById('kpi-completed-count').innerText = completedCount;
+      document.getElementById('kpi-avg-meal-cost').innerText = `NT$ ${Math.round(usageTotal / 7)}`;
+      document.getElementById('kpi-avg-calories').innerText = `約 ${avgKcal} kcal`;
+
+      const percent = Math.min(Math.round((groceryTotal / budget) * 100), 150);
+      document.getElementById('kpi-budget-percent').innerText = `${Math.round((groceryTotal / budget) * 100)}%`;
+      
+      const bar = document.getElementById('kpi-budget-progress-bar');
+      bar.style.width = `${Math.min(percent, 100)}%`;
+
+      const statusMsg = document.getElementById('kpi-budget-status-msg');
+      const alertBanner = document.getElementById('budget-alert-banner');
+      const alertText = document.getElementById('budget-alert-text');
+
+      if (groceryTotal <= budget) {
+        const remaining = budget - groceryTotal;
+        statusMsg.className = 'mt-2 text-xs font-medium text-emerald-700 flex items-center gap-1';
+        statusMsg.innerHTML = `<span>✓ 預算內剩餘 NT$ ${remaining.toLocaleString()}</span>`;
+        bar.className = 'bg-sage-600 h-1.5 rounded-full transition-all duration-300';
+        alertBanner.classList.add('hidden');
+      } else {
+        const over = groceryTotal - budget;
+        statusMsg.className = 'mt-2 text-xs font-medium text-coral-600 flex items-center gap-1';
+        statusMsg.innerHTML = `<span>⚠️ 超出預算 NT$ ${over.toLocaleString()}</span>`;
+        bar.className = 'bg-coral-500 h-1.5 rounded-full transition-all duration-300';
+        
+        alertBanner.className = 'bg-coral-50 border-coral-200 text-coral-900 rounded-xl p-3.5 text-xs sm:text-sm flex items-start gap-2.5';
+        alertText.innerHTML = `<strong>預算提醒：</strong> 目前七日整週超市採買總額為 <strong>NT$ ${groceryTotal}</strong>，已超出您的設定目標（NT$ ${budget}）共 <strong>NT$ ${over}</strong>。您可點擊單日卡片的「替換」選擇更高共用性或平價的菜色（如豆腐或番茄滑蛋），或在個人設定中適度調整整週預算。`;
+      }
+    }
+
+    // 渲染採買清單表格 (Tab 2)
+    function renderGroceryView() {
+      const tbody = document.getElementById('grocery-table-body');
+      const weekKey = getWeekKey(appState.currentWeekOffset);
+      const menu = appState.weeklyMenus[weekKey] || [];
+
+      if (menu.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" class="text-center py-10 text-stone-400 text-xs">
+              尚未產生菜單，請先至「七日晚餐」頁籤規劃菜色。
+            </td>
+          </tr>
+        `;
+        document.getElementById('grocery-table-sum').innerText = 'NT$ 0';
+        return;
+      }
+
+      const plan = calculateWeeklyGroceryPlan(menu);
+      document.getElementById('grocery-table-sum').innerText = `NT$ ${plan.totalGroceryCost.toLocaleString()}`;
+
+      tbody.innerHTML = plan.groceryList.map(item => {
+        const isChecked = !!appState.groceryCheckedState[item.id];
+        return `
+          <tr class="${isChecked ? 'bg-stone-50/80 text-stone-400 line-through' : 'hover:bg-stone-50/50'} transition-colors">
+            <td class="py-3 px-4 text-center">
+              <input type="checkbox" data-id="${item.id}" class="grocery-item-check rounded text-sage-600 focus:ring-sage-500 cursor-pointer" ${isChecked ? 'checked' : ''} />
+            </td>
+            <td class="py-3 px-4 font-medium text-stone-800 ${isChecked ? 'text-stone-400' : ''}">
+              <div class="flex items-center gap-2">
+                <span>${item.name}</span>
+                <span class="text-[10px] text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">${item.category}</span>
+              </div>
+              <div class="text-[11px] text-stone-400 font-normal no-underline truncate max-w-xs mt-0.5">
+                用於：${item.usedInDishes.join('、')}
+              </div>
+            </td>
+            <td class="py-3 px-4 text-right tabular-nums">
+              ${item.totalAmount} ${item.unit}
+            </td>
+            <td class="py-3 px-4 text-stone-600 text-xs">
+              ${item.packageSize} ${item.unit}/${item.packageUnit}
+            </td>
+            <td class="py-3 px-4 text-right font-bold text-stone-900 tabular-nums">
+              ${item.packagesToBuy} ${item.packageUnit}
+            </td>
+            <td class="py-3 px-4 text-right text-stone-600 tabular-nums">
+              NT$ ${item.referencePrice}
+            </td>
+            <td class="py-3 px-4 text-right font-bold text-sage-900 tabular-nums">
+              NT$ ${item.packagedCost}
+            </td>
+            <td class="py-3 px-4 text-right text-stone-500 text-xs tabular-nums">
+              ${item.surplusAmount > 0 ? `+${item.surplusAmount} ${item.unit}` : '剛剛好'}
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      // 監聽勾選狀態
+      document.querySelectorAll('.grocery-item-check').forEach(chk => {
+        chk.addEventListener('change', (e) => {
+          const ingId = e.target.getAttribute('data-id');
+          appState.groceryCheckedState[ingId] = e.target.checked;
+          saveState();
+          renderGroceryView();
+        });
+      });
+    }
+
+    // 渲染用餐紀錄與偏好摘要 (Tab 3)
+    function renderLogsView() {
+      const history = appState.mealHistory || [];
+      const totalKcal = history.reduce((sum, h) => sum + (h.kcal || 0), 0);
+      const totalMeals = history.length;
+      
+      let avgRating = 0;
+      const ratedMeals = history.filter(h => h.rating);
+      if (ratedMeals.length > 0) {
+        avgRating = (ratedMeals.reduce((s, h) => s + h.rating, 0) / ratedMeals.length).toFixed(1);
+      }
+
+      document.getElementById('log-total-consumed-kcal').innerText = totalKcal.toLocaleString();
+      document.getElementById('log-total-meals-count').innerText = totalMeals;
+      document.getElementById('log-avg-rating').innerText = avgRating;
+
+      // 偏好摘要分析
+      const summaryContainer = document.getElementById('preferences-summary-content');
+      if (history.length === 0) {
+        summaryContainer.innerHTML = `
+          <div class="col-span-full py-4 text-stone-400 text-center">
+            尚無用餐紀錄。在「七日晚餐」中點擊「標記已吃」並給予評分，系統即可開始學習您的個人化飲食偏好！
+          </div>
+        `;
+      } else {
+        // 計算常吃肉類
+        const proteinCount = {};
+        const recipeFrequency = {};
+        history.forEach(h => {
+          const r = RECIPES_DB.find(x => x.id === h.recipeId);
+          if (r) {
+            proteinCount[r.primaryProtein] = (proteinCount[r.primaryProtein] || 0) + 1;
+          }
+          recipeFrequency[h.recipeName] = (recipeFrequency[h.recipeName] || 0) + 1;
+        });
+
+        const topDishes = Object.entries(recipeFrequency)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3)
+          .map(([name, count]) => `${name} (${count}次)`)
+          .join('、');
+
+        summaryContainer.innerHTML = `
+          <div class="space-y-1.5">
+            <div class="font-semibold text-stone-800">最喜愛/高頻食用料理：</div>
+            <div class="text-stone-600">${topDishes || '累計中'}</div>
+          </div>
+          <div class="space-y-1.5">
+            <div class="font-semibold text-stone-800">主食材蛋白質偏好分佈：</div>
+            <div class="text-stone-600">
+              雞肉類：${proteinCount['chicken'] || 0} 餐 · 豬肉類：${proteinCount['pork'] || 0} 餐 · 蛋豆類：${(proteinCount['tofu'] || 0) + (proteinCount['egg'] || 0)} 餐 · 海鮮：${proteinCount['seafood'] || 0} 餐
+            </div>
+          </div>
+        `;
+      }
+
+      // 歷史列表
+      const listContainer = document.getElementById('meal-logs-list');
+      if (history.length === 0) {
+        listContainer.innerHTML = `<div class="p-6 text-center text-xs text-stone-400">目前尚無歷史用餐紀錄</div>`;
+        return;
+      }
+
+      listContainer.innerHTML = history.slice().reverse().map(h => {
+        const starStr = h.rating ? '★'.repeat(h.rating) + '☆'.repeat(5 - h.rating) : '未評分';
+        return `
+          <div class="p-4 flex items-center justify-between text-xs hover:bg-stone-50">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-stone-900 text-sm">${h.recipeName}</span>
+                <span class="text-amber-500 font-mono">${starStr}</span>
+              </div>
+              <div class="text-stone-500 mt-1">
+                用餐日期：${h.date} · 估計攝取：${h.kcal} kcal · 使用成本：NT$ ${h.cost}
+                ${h.notes ? ` · 備註：${h.notes}` : ''}
+              </div>
+            </div>
+            ${h.actualSpend ? `
+              <div class="text-right">
+                <div class="text-[11px] text-stone-400">自填花費</div>
+                <div class="font-bold text-stone-800">NT$ ${h.actualSpend}</div>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    // 渲染料理庫展示 (Tab 4)
+    function renderRecipesRepo(query = '') {
+      const container = document.getElementById('recipe-repo-grid');
+      const filtered = RECIPES_DB.filter(r => {
+        if (!query) return true;
+        const q = query.toLowerCase();
+        return r.name.toLowerCase().includes(q) || 
+               r.category.toLowerCase().includes(q) ||
+               r.tags.some(t => t.toLowerCase().includes(q)) ||
+               r.ingredients.some(it => INGREDIENTS_DB[it.ingredientId]?.name.toLowerCase().includes(q));
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="col-span-full py-12 text-center text-stone-400 text-xs">找不到符合「${query}」的料理</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(r => {
+        const kcal = calculateRecipeNutrition(r);
+        const cost = calculateRecipeIngredientCost(r);
+        return `
+          <div class="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+            <div>
+              <div class="h-36 bg-stone-100 overflow-hidden relative cursor-pointer btn-repo-view" data-id="${r.id}">
+                <img src="${r.image}" alt="${r.name}" loading="lazy" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'400\\' height=\\'300\\' viewBox=\\'0 0 400 300\\' fill=\\'%23F4F7F5\\'><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' font-family=\\'sans-serif\\' font-size=\\'18\\' fill=\\'%234A6B5D\\'>🍳 ${encodeURIComponent(r.name)}</text></svg>';" />
+                <span class="absolute bottom-2 left-2 text-[10px] bg-stone-900/80 text-white px-2 py-0.5 rounded">${r.category}</span>
+              </div>
+              <div class="p-3.5">
+                <h4 class="font-bold text-stone-900 text-sm hover:text-sage-700 cursor-pointer btn-repo-view" data-id="${r.id}">${r.name}</h4>
+                <div class="flex items-center gap-2 text-[11px] text-stone-500 mt-1">
+                  <span>⏱️ ${r.cookTimeMinutes}分</span>
+                  <span>·</span>
+                  <span>約 ${kcal} kcal</span>
+                  <span>·</span>
+                  <span>NT$ ${cost}</span>
+                </div>
+              </div>
+            </div>
+            <div class="px-3.5 pb-3 pt-1 border-t border-stone-100 flex justify-between items-center text-xs">
+              <span class="text-[11px] text-stone-400">${r.tags.join(' · ')}</span>
+              <button class="text-sage-700 hover:underline font-semibold btn-repo-view" data-id="${r.id}">詳情</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.querySelectorAll('.btn-repo-view').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          openRecipeDetailModal(e.currentTarget.getAttribute('data-id'));
+        });
+      });
+    }
+
+    // --- 7. 互動對話框與控制器 (Modals & Controllers) ---
+
+    // 開啟料理詳情 Modal
+    function openRecipeDetailModal(recipeId) {
+      const recipe = RECIPES_DB.find(r => r.id === recipeId);
+      if (!recipe) return;
+
+      document.getElementById('modal-detail-category').innerText = recipe.category;
+      document.getElementById('modal-detail-title').innerText = recipe.name;
+      document.getElementById('modal-detail-cooktime').innerText = `⏱️ 約 ${recipe.cookTimeMinutes} 分鐘`;
+      document.getElementById('modal-detail-calories').innerText = `約 ${calculateRecipeNutrition(recipe)} kcal`;
+      document.getElementById('modal-detail-cost').innerText = `食材使用成本約 NT$ ${calculateRecipeIngredientCost(recipe)}`;
+      
+      const img = document.getElementById('modal-detail-image');
+      img.src = recipe.image;
+      img.onerror = function() {
+        this.onerror = null;
+        this.src = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='300' viewBox='0 0 600 300' fill='%23F4F7F5'><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='22' fill='%234A6B5D'>🍳 ${encodeURIComponent(recipe.name)}</text></svg>`;
+      };
+
+      // 過敏原
+      const allergenBox = document.getElementById('modal-detail-allergens-box');
+      if (recipe.allergens && recipe.allergens.length > 0) {
+        allergenBox.classList.remove('hidden');
+        document.getElementById('modal-detail-allergens').innerText = recipe.allergens.join('、');
+      } else {
+        allergenBox.classList.add('hidden');
+      }
+
+      // 食材列表
+      const tbody = document.getElementById('modal-detail-ingredients-tbody');
+      tbody.innerHTML = recipe.ingredients.map(item => {
+        const ing = INGREDIENTS_DB[item.ingredientId];
+        if (!ing) return '';
+        let itemKcal = 0;
+        if (ing.kcalPerStandardUnit !== undefined) itemKcal = Math.round(item.amount * ing.kcalPerStandardUnit);
+        else if (ing.kcalPer100g !== undefined) itemKcal = Math.round((item.amount / 100) * ing.kcalPer100g);
+
+        let itemCost = 0;
+        if (ing.isPantry) itemCost = Math.round(ing.referencePrice * item.amount * 10) / 10;
+        else itemCost = Math.round((item.amount / ing.packageSize) * ing.referencePrice);
+
+        return `
+          <tr>
+            <td class="p-2.5 font-medium text-stone-800">
+              ${ing.name} ${ing.isPantry ? '<span class="text-[10px] text-amber-600">(常備)</span>' : ''}
+            </td>
+            <td class="p-2.5 text-right tabular-nums text-stone-600">${item.amount} ${item.unit}</td>
+            <td class="p-2.5 text-right tabular-nums text-stone-600">${itemKcal} kcal</td>
+            <td class="p-2.5 text-right tabular-nums font-semibold text-stone-900">NT$ ${itemCost}</td>
+          </tr>
+        `;
+      }).join('');
+
+      // 步驟
+      const stepsList = document.getElementById('modal-detail-steps');
+      stepsList.innerHTML = recipe.steps.map(step => `<li>${step}</li>`).join('');
+
+      document.getElementById('modal-recipe-detail').classList.remove('hidden');
+    }
+
+    // 開啟單日料理替換 Modal
+    let activeReplaceDate = null;
+    let selectedReplacementId = null;
+
+    function openReplaceModal(dateStr, currentRecipeId) {
+      activeReplaceDate = dateStr;
+      selectedReplacementId = null;
+      const weekKey = getWeekKey(appState.currentWeekOffset);
+      const currentMenu = appState.weeklyMenus[weekKey] || [];
+      const currentRecipe = RECIPES_DB.find(r => r.id === currentRecipeId);
+
+      document.getElementById('replace-modal-subtitle').innerText = `為 ${dateStr} 挑選替代料理`;
+      document.getElementById('replace-modal-current-name').innerText = currentRecipe ? currentRecipe.name : '';
+      document.getElementById('replace-modal-current-cost').innerText = 
+        currentRecipe ? `使用成本約 NT$ ${calculateRecipeIngredientCost(currentRecipe)}` : '';
+
+      // 計算替換候選 (排除當前料理、過敏忌口，並模擬整週採買變動)
+      const allowed = RECIPES_DB.filter(r => r.id !== currentRecipeId && isRecipeAllowed(r, appState.preferences));
+      
+      // 隨機或挑選前 3 道代表性料理
+      const candidates = allowed.slice(0, 3);
+      const container = document.getElementById('replace-candidates-container');
+      const basePlan = calculateWeeklyGroceryPlan(currentMenu);
+      const baseTotalCost = basePlan.totalGroceryCost;
+
+      container.innerHTML = candidates.map(cand => {
+        // 模擬如果替換後的整週菜單
+        const simulatedMenu = currentMenu.map(d => d.date === dateStr ? { ...d, recipeId: cand.id } : d);
+        const simPlan = calculateWeeklyGroceryPlan(simulatedMenu);
+        const diff = simPlan.totalGroceryCost - baseTotalCost;
+        
+        let diffLabel = '';
+        if (diff > 0) {
+          diffLabel = `<span class="text-coral-600 font-semibold">+NT$ ${diff} (採買增加)</span>`;
+        } else if (diff < 0) {
+          diffLabel = `<span class="text-emerald-700 font-semibold">-NT$ ${Math.abs(diff)} (採買節省)</span>`;
+        } else {
+          diffLabel = `<span class="text-stone-500 font-semibold">±NT$ 0 (採買總額不變)</span>`;
+        }
+
+        return `
+          <div class="replace-candidate-card border border-stone-200 hover:border-sage-600 rounded-xl p-3 cursor-pointer transition-all flex items-center justify-between" data-id="${cand.id}">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-lg bg-stone-100 overflow-hidden shrink-0">
+                <img src="${cand.image}" alt="${cand.name}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'100\\' height=\\'100\\'><rect fill=\\'%23eee\\' width=\\'100\\' height=\\'100\\'/></svg>';" />
+              </div>
+              <div>
+                <div class="font-bold text-stone-900 text-sm">${cand.name}</div>
+                <div class="text-[11px] text-stone-500 mt-0.5">
+                  約 ${calculateRecipeNutrition(cand)} kcal · ${cand.category}
+                </div>
+              </div>
+            </div>
+            <div class="text-right text-xs">
+              <div class="text-[11px] text-stone-400">整週採買變動</div>
+              <div class="tabular-nums">${diffLabel}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('btn-confirm-replace').disabled = true;
+      document.getElementById('replace-budget-delta-box').classList.add('hidden');
+
+      // 監聽候選卡片點擊
+      document.querySelectorAll('.replace-candidate-card').forEach(card => {
+        card.addEventListener('click', (e) => {
+          document.querySelectorAll('.replace-candidate-card').forEach(c => {
+            c.classList.remove('border-sage-600', 'bg-sage-50/50', 'ring-2', 'ring-sage-300');
+          });
+          const el = e.currentTarget;
+          el.classList.add('border-sage-600', 'bg-sage-50/50', 'ring-2', 'ring-sage-300');
+          selectedReplacementId = el.getAttribute('data-id');
+          document.getElementById('btn-confirm-replace').disabled = false;
+
+          // 計算預算變動資訊
+          const simulatedMenu = currentMenu.map(d => d.date === dateStr ? { ...d, recipeId: selectedReplacementId } : d);
+          const simPlan = calculateWeeklyGroceryPlan(simulatedMenu);
+          const newTotal = simPlan.totalGroceryCost;
+          const budget = appState.preferences.budget || 1000;
+          const deltaBox = document.getElementById('replace-budget-delta-box');
+          deltaBox.classList.remove('hidden');
+
+          if (newTotal > budget) {
+            deltaBox.className = 'p-3 rounded-xl text-xs flex items-center justify-between border bg-coral-50 border-coral-200 text-coral-900';
+            deltaBox.innerHTML = `
+              <span>⚠️ 替換後整週採買總額為 <strong>NT$ ${newTotal}</strong> (超出預算 NT$ ${newTotal - budget})</span>
+              <span class="text-[11px]">仍可確認更換</span>
+            `;
+          } else {
+            deltaBox.className = 'p-3 rounded-xl text-xs flex items-center justify-between border bg-emerald-50 border-emerald-200 text-emerald-900';
+            deltaBox.innerHTML = `
+              <span>✓ 替換後整週採買總額為 <strong>NT$ ${newTotal}</strong> (符合預算目標)</span>
+              <span class="text-[11px] text-emerald-700">經濟實惠</span>
+            `;
+          }
+        });
+      });
+
+      document.getElementById('modal-replace-dish').classList.remove('hidden');
+    }
+
+    // 確認執行替換單日料理 (只更新該日，其餘 6 日絕對不變)
+    function confirmDishReplacement() {
+      if (!activeReplaceDate || !selectedReplacementId) return;
+      const weekKey = getWeekKey(appState.currentWeekOffset);
+      const currentMenu = appState.weeklyMenus[weekKey] || [];
+
+      const newRecipe = RECIPES_DB.find(r => r.id === selectedReplacementId);
+      const updatedMenu = currentMenu.map(item => {
+        if (item.date === activeReplaceDate) {
+          return {
+            ...item,
+            recipeId: selectedReplacementId,
+            reason: `手動替換：${newRecipe ? newRecipe.name : ''}`
+          };
+        }
+        return item;
+      });
+
+      appState.weeklyMenus[weekKey] = updatedMenu;
+      saveState();
+
+      document.getElementById('modal-replace-dish').classList.add('hidden');
+      renderSevenDayMenu();
+      renderGroceryView();
+      showToast('已成功替換該日料理並重新核算整週採買清單！', 'success');
+    }
+
+    // 渲染重新規劃草稿確認 Modal
+    function renderReplanDraftModal() {
+      const draft = appState.draftMenu;
+      if (!draft) return;
+
+      const weekKey = draft.weekKey;
+      const oldMenu = appState.weeklyMenus[weekKey] || [];
+      const oldPlan = calculateWeeklyGroceryPlan(oldMenu);
+
+      document.getElementById('replan-old-cost').innerText = `NT$ ${oldPlan.totalGroceryCost.toLocaleString()}`;
+      document.getElementById('replan-new-cost').innerText = `NT$ ${draft.groceryTotal.toLocaleString()}`;
+
+      const tbody = document.getElementById('replan-draft-table-body');
+      tbody.innerHTML = draft.days.map(d => {
+        const recipe = RECIPES_DB.find(r => r.id === d.recipeId);
+        const kcal = calculateRecipeNutrition(recipe);
+        const isRetained = d.status === 'completed';
+        return `
+          <tr class="${isRetained ? 'bg-emerald-50/50' : ''}">
+            <td class="p-2.5 font-medium text-stone-800">
+              ${d.date} ${isRetained ? '<span class="text-[10px] text-emerald-700 font-bold">(已吃保留)</span>' : ''}
+            </td>
+            <td class="p-2.5 font-bold text-stone-900">${recipe ? recipe.name : ''}</td>
+            <td class="p-2.5 text-right tabular-nums text-stone-600">約 ${kcal} kcal</td>
+            <td class="p-2.5 text-stone-500 text-[11px]">${d.reason}</td>
+          </tr>
+        `;
+      }).join('');
+
+      document.getElementById('modal-replan-confirm').classList.remove('hidden');
+    }
+
+    // 套用草稿為正式菜單
+    function applyReplanDraft() {
+      if (!appState.draftMenu) return;
+      appState.weeklyMenus[appState.draftMenu.weekKey] = appState.draftMenu.days;
+      appState.draftMenu = null;
+      saveState();
+      document.getElementById('modal-replan-confirm').classList.add('hidden');
+      renderSevenDayMenu();
+      renderGroceryView();
+      showToast('全新一週菜單已確認套用！', 'success');
+    }
+
+    // 開啟用餐評分 Modal
+    let ratingTargetDate = null;
+    let selectedStarRating = 5;
+
+    function openMealRatingModal(dateStr) {
+      ratingTargetDate = dateStr;
+      selectedStarRating = 5;
+      const weekKey = getWeekKey(appState.currentWeekOffset);
+      const currentMenu = appState.weeklyMenus[weekKey] || [];
+      const meal = currentMenu.find(m => m.date === dateStr);
+      const recipe = RECIPES_DB.find(r => r.id === meal?.recipeId);
+
+      document.getElementById('rating-modal-meal-title').innerText = 
+        `${dateStr} · ${recipe ? recipe.name : '晚餐料理'}`;
+      document.getElementById('rating-modal-notes').value = '';
+      document.getElementById('rating-modal-spend').value = '';
+      updateStarButtons(5);
+
+      document.getElementById('modal-meal-rating').classList.remove('hidden');
+    }
+
+    function updateStarButtons(val) {
+      selectedStarRating = val;
+      const buttons = document.querySelectorAll('#star-rating-buttons .star-btn');
+      buttons.forEach(btn => {
+        const starVal = parseInt(btn.getAttribute('data-val'), 10);
+        if (starVal <= val) {
+          btn.classList.add('text-amber-400');
+          btn.classList.remove('text-stone-300');
+        } else {
+          btn.classList.add('text-stone-300');
+          btn.classList.remove('text-amber-400');
+        }
+      });
+      const descs = { 1: '需改進 (1星)', 2: '普普通通 (2星)', 3: '還算滿意 (3星)', 4: '美味可口 (4星)', 5: '非常喜愛 (5星)' };
+      document.getElementById('star-rating-desc').innerText = descs[val] || '';
+    }
+
+    function saveMealRating() {
+      if (!ratingTargetDate) return;
+      const weekKey = getWeekKey(appState.currentWeekOffset);
+      const currentMenu = appState.weeklyMenus[weekKey] || [];
+      const meal = currentMenu.find(m => m.date === ratingTargetDate);
+      if (!meal) return;
+
+      const recipe = RECIPES_DB.find(r => r.id === meal.recipeId);
+      const notes = document.getElementById('rating-modal-notes').value.trim();
+      const spend = parseFloat(document.getElementById('rating-modal-spend').value) || null;
+
+      // 標記狀態為已完成
+      meal.status = 'completed';
+      meal.rating = selectedStarRating;
+      meal.notes = notes;
+      meal.actualSpend = spend;
+      meal.completedAt = new Date().toISOString();
+
+      // 加入用餐歷史
+      appState.mealHistory.push({
+        date: ratingTargetDate,
+        recipeId: meal.recipeId,
+        recipeName: recipe ? recipe.name : '',
+        kcal: calculateRecipeNutrition(recipe),
+        cost: calculateRecipeIngredientCost(recipe),
+        rating: selectedStarRating,
+        notes,
+        actualSpend: spend,
+        timestamp: Date.now()
+      });
+
+      saveState();
+      document.getElementById('modal-meal-rating').classList.add('hidden');
+      renderSevenDayMenu();
+      renderLogsView();
+      showToast(`已成功記錄！恭喜完成今日晚餐。`, 'success');
+    }
+
+    function unmarkMealCompletion(dateStr) {
+      const weekKey = getWeekKey(appState.currentWeekOffset);
+      const currentMenu = appState.weeklyMenus[weekKey] || [];
+      const meal = currentMenu.find(m => m.date === dateStr);
+      if (!meal) return;
+
+      meal.status = 'planned';
+      // 從 mealHistory 中移除最近一筆相同日期的紀錄
+      const idx = appState.mealHistory.findIndex(h => h.date === dateStr);
+      if (idx !== -1) appState.mealHistory.splice(idx, 1);
+
+      saveState();
+      renderSevenDayMenu();
+      renderLogsView();
+      showToast('已取消完成狀態。', 'info');
+    }
+
+    // 個人設定對話框
+    function openSettingsModal() {
+      const p = appState.preferences;
+      document.getElementById('setting-budget').value = p.budget || 1000;
+      document.getElementById('setting-diet-goal').value = p.dietGoal || '均衡飲食';
+      document.getElementById('setting-liked').value = (p.likedIngredients || []).join(', ');
+      document.getElementById('setting-disliked').value = (p.dislikedIngredients || []).join(', ');
+      document.getElementById('setting-cuisine').value = p.cuisineStyle || '綜合家常';
+      document.getElementById('setting-activity').value = p.activityLevel || '輕度活動';
+      document.getElementById('setting-height').value = p.height || '';
+      document.getElementById('setting-weight').value = p.weight || '';
+      document.getElementById('setting-worker-url').value = p.workerUrl || '';
+
+      // 設定推薦模式 Radio
+      const radios = document.getElementsByName('recommendation-mode');
+      for (const r of radios) {
+        r.checked = (r.value === (p.recommendationMode || 'local'));
+      }
+
+      // 設定過敏 Checkbox
+      const allergenBoxes = document.querySelectorAll('#allergens-checkboxes input[type="checkbox"]');
+      allergenBoxes.forEach(chk => {
+        chk.checked = (p.allergens || []).includes(chk.value);
+      });
+
+      calculateAndDisplayBmi();
+      document.getElementById('modal-settings').classList.remove('hidden');
+    }
+
+    function calculateAndDisplayBmi() {
+      const h = parseFloat(document.getElementById('setting-height').value);
+      const w = parseFloat(document.getElementById('setting-weight').value);
+      const display = document.getElementById('setting-bmi-display');
+      if (h > 80 && w > 20) {
+        const m = h / 100;
+        const bmi = (w / (m * m)).toFixed(1);
+        display.innerText = `BMI: ${bmi}`;
+      } else {
+        display.innerText = `BMI: --`;
+      }
+    }
+
+    function saveSettings(e) {
+      e.preventDefault();
+      const budget = parseInt(document.getElementById('setting-budget').value, 10) || 1000;
+      const dietGoal = document.getElementById('setting-diet-goal').value;
+      const likedStr = document.getElementById('setting-liked').value;
+      const dislikedStr = document.getElementById('setting-disliked').value;
+      const cuisineStyle = document.getElementById('setting-cuisine').value;
+      const activityLevel = document.getElementById('setting-activity').value;
+      const height = parseFloat(document.getElementById('setting-height').value) || null;
+      const weight = parseFloat(document.getElementById('setting-weight').value) || null;
+      const workerUrl = document.getElementById('setting-worker-url').value.trim();
+
+      let recMode = 'local';
+      const radios = document.getElementsByName('recommendation-mode');
+      for (const r of radios) {
+        if (r.checked) recMode = r.value;
+      }
+
+      const allergens = [];
+      document.querySelectorAll('#allergens-checkboxes input[type="checkbox"]:checked').forEach(chk => {
+        allergens.push(chk.value);
+      });
+
+      const liked = likedStr.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+      const disliked = dislikedStr.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+
+      appState.preferences = {
+        budget,
+        dietGoal,
+        likedIngredients: liked,
+        dislikedIngredients: disliked,
+        allergens,
+        cuisineStyle,
+        activityLevel,
+        height,
+        weight,
+        recommendationMode: recMode,
+        workerUrl
+      };
+
+      saveState();
+      document.getElementById('modal-settings').classList.add('hidden');
+      updateEngineIndicator();
+      showToast('個人設定已保存！現有菜單維持原樣，點擊重新規劃可套用新設定。', 'success');
+      renderSevenDayMenu();
+    }
+
+    function updateEngineIndicator() {
+      const mode = appState.preferences.recommendationMode;
+      const label = document.getElementById('current-engine-label');
+      if (mode === 'ai') {
+        label.innerText = 'Gemini AI 推薦代理';
+        label.className = 'text-sage-700 font-semibold';
+      } else {
+        label.innerText = '智能本地演算法 (離線支援)';
+        label.className = 'text-stone-600';
+      }
+    }
+
+    // 測試 Worker 連線
+    async function testWorkerConnection() {
+      const url = document.getElementById('setting-worker-url').value.trim();
+      if (!url) {
+        showToast('請先填入 Cloudflare Worker 網址', 'error');
+        return;
+      }
+      showLoading(true, '正在測試 Worker 連線...', '發送 Ping 檢查代理狀態');
+      try {
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'ping' })
+        });
+        showLoading(false);
+        if (resp.status === 400 || resp.ok) {
+          showToast('✓ Cloudflare Worker 連線成功！', 'success');
+        } else {
+          showToast(`Worker 回應 HTTP ${resp.status}，請檢查 Secrets 與部署狀態`, 'error');
+        }
+      } catch (err) {
+        showLoading(false);
+        showToast(`無法連線至 Worker (${err.message})`, 'error');
+      }
+    }
+
+    // 複製採買清單
+    function copyGroceryListToClipboard() {
+      const weekKey = getWeekKey(appState.currentWeekOffset);
+      const menu = appState.weeklyMenus[weekKey] || [];
+      if (menu.length === 0) {
+        showToast('目前尚無採買清單可供複製', 'error');
+        return;
+      }
+
+      const plan = calculateWeeklyGroceryPlan(menu);
+      let text = `🛒 小資日嚐 · 整週超市採買清單\n`;
+      text += `📅 規劃區間：${document.getElementById('label-date-range').innerText}\n`;
+      text += `💰 預估採買總額：NT$ ${plan.totalGroceryCost}\n\n`;
+
+      plan.groceryList.forEach((it, idx) => {
+        text += `${idx + 1}. [ ] ${it.name} (${it.category}) - 需 ${it.totalAmount}${it.unit} -> 買 ${it.packagesToBuy}${it.packageUnit} (約 NT$ ${it.packagedCost})\n`;
+      });
+
+      text += `\n* 註：醬油、鹽、食用油等基礎調味料假設家中已有。`;
+
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('已將完整採買清單複製到剪貼簿！可貼至 LINE 或備忘錄。', 'success');
+      }).catch(() => {
+        showToast('複製失敗，請手動選取', 'error');
+      });
+    }
+
+    // --- 8. 全域輔助功能 (Toast, Loading, Tab Switch) ---
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const bgColors = {
+        success: 'bg-emerald-800 text-white',
+        error: 'bg-coral-600 text-white',
+        info: 'bg-stone-800 text-white'
+      };
+      toast.className = `${bgColors[type] || 'bg-stone-800 text-white'} pointer-events-auto p-3.5 rounded-xl shadow-lg text-xs font-medium flex items-center justify-between gap-2 transition-all transform duration-200 translate-y-2 opacity-0`;
+      toast.innerHTML = `<span>${message}</span><button class="opacity-70 hover:opacity-100 text-sm">✕</button>`;
+      
+      toast.querySelector('button').onclick = () => toast.remove();
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 250);
+      }, 3500);
+    }
+
+    function showLoading(show, title = '載入中...', desc = '') {
+      const overlay = document.getElementById('loading-overlay');
+      if (show) {
+        document.getElementById('loading-title').innerText = title;
+        document.getElementById('loading-desc').innerText = desc;
+        overlay.classList.remove('hidden');
+      } else {
+        overlay.classList.add('hidden');
+      }
+    }
+
+    function switchTab(target) {
+      const tabs = ['menu', 'grocery', 'logs', 'recipes'];
+      tabs.forEach(t => {
+        const view = document.getElementById(`view-${t}`);
+        const btn = document.getElementById(`nav-btn-${t}`);
+        const mBtn = document.getElementById(`m-nav-btn-${t}`);
+        
+        if (t === target) {
+          view?.classList.remove('hidden');
+          btn?.classList.add('text-sage-700', 'font-semibold', 'border-b-2', 'border-sage-600', 'pb-0.5');
+          mBtn?.classList.add('font-semibold', 'text-sage-700');
+        } else {
+          view?.classList.add('hidden');
+          btn?.classList.remove('text-sage-700', 'font-semibold', 'border-b-2', 'border-sage-600', 'pb-0.5');
+          mBtn?.classList.remove('font-semibold', 'text-sage-700');
+        }
+      });
+
+      if (target === 'menu') renderSevenDayMenu();
+      else if (target === 'grocery') renderGroceryView();
+      else if (target === 'logs') renderLogsView();
+      else if (target === 'recipes') renderRecipesRepo();
+    }
+
+    // --- 9. 初始化與事件綁定 (Initialization & Event Binding) ---
+    function init() {
+      // 導覽切換
+      ['menu', 'grocery', 'logs', 'recipes'].forEach(t => {
+        document.getElementById(`nav-btn-${t}`)?.addEventListener('click', () => switchTab(t));
+        document.getElementById(`m-nav-btn-${t}`)?.addEventListener('click', () => switchTab(t));
+      });
+
+      // 週別切換 (本週 vs 下週)
+      document.getElementById('btn-this-week').addEventListener('click', () => {
+        appState.currentWeekOffset = 0;
+        document.getElementById('btn-this-week').className = 'px-3 py-1 font-medium rounded-md bg-white text-stone-900 shadow-xs transition-all';
+        document.getElementById('btn-next-week').className = 'px-3 py-1 font-medium rounded-md text-stone-600 hover:text-stone-900 transition-all';
+        renderSevenDayMenu();
+      });
+
+      document.getElementById('btn-next-week').addEventListener('click', () => {
+        appState.currentWeekOffset = 1;
+        document.getElementById('btn-next-week').className = 'px-3 py-1 font-medium rounded-md bg-white text-stone-900 shadow-xs transition-all';
+        document.getElementById('btn-this-week').className = 'px-3 py-1 font-medium rounded-md text-stone-600 hover:text-stone-900 transition-all';
+        renderSevenDayMenu();
+      });
+
+      // 產生 / 重新規劃菜單按鈕
+      document.getElementById('btn-replan-all').addEventListener('click', () => planWeeklyMenu());
+
+      // 快速修改預算
+      document.getElementById('btn-quick-edit-budget').addEventListener('click', openSettingsModal);
+
+      // 個人設定按鈕與表單
+      document.getElementById('open-settings-btn').addEventListener('click', openSettingsModal);
+      document.getElementById('btn-close-settings-modal').addEventListener('click', () => {
+        document.getElementById('modal-settings').classList.add('hidden');
+      });
+      document.getElementById('btn-cancel-settings').addEventListener('click', () => {
+        document.getElementById('modal-settings').classList.add('hidden');
+      });
+      document.getElementById('form-settings').addEventListener('submit', saveSettings);
+      document.getElementById('setting-height').addEventListener('input', calculateAndDisplayBmi);
+      document.getElementById('setting-weight').addEventListener('input', calculateAndDisplayBmi);
+      document.getElementById('btn-test-worker').addEventListener('click', testWorkerConnection);
+
+      // 關閉料理詳情 Modal
+      document.getElementById('btn-close-recipe-detail').addEventListener('click', () => {
+        document.getElementById('modal-recipe-detail').classList.add('hidden');
+      });
+      document.getElementById('btn-close-recipe-detail-bottom').addEventListener('click', () => {
+        document.getElementById('modal-recipe-detail').classList.add('hidden');
+      });
+
+      // 單日料理替換 Modal 按鈕
+      document.getElementById('btn-close-replace-modal').addEventListener('click', () => {
+        document.getElementById('modal-replace-dish').classList.add('hidden');
+      });
+      document.getElementById('btn-cancel-replace').addEventListener('click', () => {
+        document.getElementById('modal-replace-dish').classList.add('hidden');
+      });
+      document.getElementById('btn-confirm-replace').addEventListener('click', confirmDishReplacement);
+
+      // 草稿確認 Modal 按鈕
+      document.getElementById('btn-close-replan-modal').addEventListener('click', () => {
+        document.getElementById('modal-replan-confirm').classList.add('hidden');
+      });
+      document.getElementById('btn-cancel-replan-draft').addEventListener('click', () => {
+        document.getElementById('modal-replan-confirm').classList.add('hidden');
+      });
+      document.getElementById('btn-apply-replan-draft').addEventListener('click', applyReplanDraft);
+
+      // 用餐評分 Modal
+      document.getElementById('btn-close-rating-modal').addEventListener('click', () => {
+        document.getElementById('modal-meal-rating').classList.add('hidden');
+      });
+      document.getElementById('btn-cancel-rating').addEventListener('click', () => {
+        document.getElementById('modal-meal-rating').classList.add('hidden');
+      });
+      document.getElementById('btn-save-rating').addEventListener('click', saveMealRating);
+      document.querySelectorAll('#star-rating-buttons .star-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          updateStarButtons(parseInt(e.currentTarget.getAttribute('data-val'), 10));
+        });
+      });
+
+      // 採買清單按鈕
+      document.getElementById('btn-copy-grocery-list').addEventListener('click', copyGroceryListToClipboard);
+      document.getElementById('btn-reset-grocery-checks').addEventListener('click', () => {
+        appState.groceryCheckedState = {};
+        saveState();
+        renderGroceryView();
+        showToast('已重設所有採買項目勾選狀態', 'info');
+      });
+
+      // 料理庫搜尋
+      document.getElementById('recipe-search-input')?.addEventListener('input', (e) => {
+        renderRecipesRepo(e.target.value.trim());
+      });
+
+      // 資料匯出與重設
+      document.getElementById('btn-export-data').addEventListener('click', () => {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
+        const dlAnchor = document.createElement('a');
+        dlAnchor.setAttribute("href", dataStr);
+        dlAnchor.setAttribute("download", `meal_planner_backup_${new Date().toISOString().slice(0,10)}.json`);
+        dlAnchor.click();
+      });
+
+      document.getElementById('btn-reset-all-data').addEventListener('click', () => {
+        if (confirm('確定要清除所有本機資料並恢復預設狀態嗎？')) {
+          localStorage.removeItem(STORAGE_KEY);
+          appState = JSON.parse(JSON.stringify(defaultState));
+          saveState();
+          location.reload();
+        }
+      });
+
+      // 初次載入
+      updateEngineIndicator();
+      const weekKey = getWeekKey(0);
+      if (!appState.weeklyMenus[weekKey] || appState.weeklyMenus[weekKey].length === 0) {
+        // 自動產生第一組預設菜單以供使用者展示
+        try {
+          appState.weeklyMenus[weekKey] = generateLocalWeeklyPlan(appState.preferences);
+          saveState();
+        } catch (e) {
+          console.warn('Initial plan generation skipped:', e);
+        }
+      }
+
+      renderSevenDayMenu();
+    }
+
+    // 啟動 App
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

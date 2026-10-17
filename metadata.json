@@ -1,0 +1,6 @@
+{
+  "name": "AI 每週料理規劃 Web App",
+  "description": "結合生成式 AI、料理推薦、食材採買預算、估計熱量及用餐紀錄的個人化晚餐規劃系統。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
