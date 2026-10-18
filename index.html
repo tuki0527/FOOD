@@ -784,6 +784,53 @@
      * 7. 事件監聽與控制器 (Controllers & Handlers)
      */
 
+    // --- 0. 靜態資源路徑解析器 (支援 Vite dev、GitHub Pages /FOOD/ 與本機離線相對路徑) ---
+    const BASE_PATH = (() => {
+      try {
+        if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.BASE_URL) {
+          return import.meta.env.BASE_URL;
+        }
+      } catch (e) {}
+      return './';
+    })();
+
+    function getAssetUrl(path) {
+      if (!path) return '';
+      if (path.startsWith('data:') || path.startsWith('http://') || path.startsWith('https://')) {
+        return path;
+      }
+      // 去除可能開頭的 './'、'/'、'src/'、'FOOD/'
+      const clean = path.replace(/^\.?\/?(FOOD\/)?(src\/)?/, '');
+      const prefix = BASE_PATH.endsWith('/') ? BASE_PATH : `${BASE_PATH}/`;
+      return `${prefix}${clean}`;
+    }
+
+    // 全域備援與錯誤防護
+    window.handleImageError = function(imgEl, recipeName, originalPath) {
+      if (!imgEl) return;
+      imgEl.onerror = null; // 防止無窮遞迴
+      
+      // 嘗試層級 1: 若原始帶有 base path 載入失敗，嘗試相對路徑 './assets/images/...'
+      if (!imgEl.dataset.triedRelative) {
+        imgEl.dataset.triedRelative = 'true';
+        const clean = (originalPath || '').replace(/^\.?\/?(FOOD\/)?(src\/)?/, '');
+        imgEl.src = `./${clean}`;
+        return;
+      }
+
+      // 嘗試層級 2: 嘗試 /assets/images/...
+      if (!imgEl.dataset.triedRoot) {
+        imgEl.dataset.triedRoot = 'true';
+        const clean = (originalPath || '').replace(/^\.?\/?(FOOD\/)?(src\/)?/, '');
+        imgEl.src = `/${clean}`;
+        return;
+      }
+
+      // 嘗試層級 3: 顯示精心設計的優雅 SVG 佔位圖（絕不呈現難看破圖）
+      const safeTitle = encodeURIComponent(recipeName || '美味晚餐');
+      imgEl.src = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300' fill='%23F4F7F5'><rect width='400' height='300' fill='%23F4F7F5'/><text x='50%' y='46%' dominant-baseline='middle' text-anchor='middle' font-size='36'>🍽️</text><text x='50%' y='64%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-weight='600' font-size='16' fill='%234A6B5D'>${safeTitle}</text></svg>`;
+    };
+
     // --- 1. 食材資料庫 (人工查核全聯福利中心與常見超市公開標準規格) ---
     const INGREDIENTS_DB = {
       // 肉類海鮮
@@ -1206,7 +1253,7 @@
         id: 'rec_teriyaki_chicken',
         name: '經典日式照燒雞腿飯',
         category: '日式定食',
-        image: '/src/assets/images/meal_teriyaki_chicken_1792268550463.jpg',
+        image: 'assets/images/meal_teriyaki_chicken_1792268550463.jpg',
         cookTimeMinutes: 20,
         tags: ['高蛋白質', '主廚推薦', '下飯'],
         allergens: ['大豆'],
@@ -1232,7 +1279,7 @@
         id: 'rec_scallion_pork',
         name: '台式熱炒蔥爆豬肉片飯',
         category: '家常台式',
-        image: '/src/assets/images/meal_pork_stirfry_1792268551371.jpg',
+        image: 'assets/images/meal_pork_stirfry_1792268551371.jpg',
         cookTimeMinutes: 15,
         tags: ['快炒熱騰', '台味經典', '鑊氣濃郁'],
         allergens: ['大豆'],
@@ -1258,7 +1305,7 @@
         id: 'rec_tomato_egg',
         name: '暖心滑蛋牛番茄燴飯',
         category: '家常台式',
-        image: '/src/assets/images/meal_tomato_egg_1792268551212.jpg',
+        image: 'assets/images/meal_tomato_egg_1792268551212.jpg',
         cookTimeMinutes: 15,
         tags: ['清爽酸甜', '經濟實惠', '蛋奶素'],
         allergens: ['雞蛋'],
@@ -1283,7 +1330,7 @@
         id: 'rec_pan_salmon',
         name: '香煎檸香鮭魚定食',
         category: '日式定食',
-        image: '/src/assets/images/meal_salmon_set_1792268551441.jpg',
+        image: 'assets/images/meal_salmon_set_1792268551441.jpg',
         cookTimeMinutes: 18,
         tags: ['優質魚油', '低負擔', 'Omega-3'],
         allergens: ['海鮮魚類'],
@@ -1307,7 +1354,7 @@
         id: 'rec_tofu_mushroom_pot',
         name: '暖胃鮮菇嫩豆腐煲飯',
         category: '暖胃湯料理',
-        image: '/src/assets/images/meal_veggie_tofu_pot_1792268552747.jpg',
+        image: 'assets/images/meal_veggie_tofu_pot_1792268552747.jpg',
         cookTimeMinutes: 15,
         tags: ['高纖清爽', '低卡飽足', '植物蛋白'],
         allergens: ['大豆'],
@@ -1332,7 +1379,7 @@
         id: 'rec_garlic_chicken_pasta',
         name: '蒜香彩椒黑椒雞胸肉麵',
         category: '輕食快炒',
-        image: '/src/assets/images/meal_teriyaki_chicken_1792268550463.jpg',
+        image: 'assets/images/meal_teriyaki_chicken_1792268550463.jpg',
         cookTimeMinutes: 18,
         tags: ['高蛋白減脂', '飽足感', '義式清炒'],
         allergens: [],
@@ -1358,7 +1405,7 @@
         id: 'rec_potato_stew_pork',
         name: '日式馬鈴薯燉梅花肉',
         category: '日式定食',
-        image: '/src/assets/images/meal_pork_stirfry_1792268551371.jpg',
+        image: 'assets/images/meal_pork_stirfry_1792268551371.jpg',
         cookTimeMinutes: 25,
         tags: ['療癒燉煮', '食材共用', '溫潤厚實'],
         allergens: ['大豆'],
@@ -1384,7 +1431,7 @@
         id: 'rec_golden_tofu_egg',
         name: '金沙香煎板豆腐蓋飯',
         category: '家常台式',
-        image: '/src/assets/images/meal_tomato_egg_1792268551212.jpg',
+        image: 'assets/images/meal_tomato_egg_1792268551212.jpg',
         cookTimeMinutes: 15,
         tags: ['植物蛋白', '經濟實惠', '蛋奶素'],
         allergens: ['大豆', '雞蛋'],
@@ -1409,7 +1456,7 @@
         id: 'rec_ginger_pork',
         name: '日式生薑燒肉定食',
         category: '日式定食',
-        image: '/src/assets/images/meal_pork_stirfry_1792268551371.jpg',
+        image: 'assets/images/meal_pork_stirfry_1792268551371.jpg',
         cookTimeMinutes: 15,
         tags: ['暖心開胃', '經典人氣', '驅寒'],
         allergens: ['大豆'],
@@ -1435,7 +1482,7 @@
         id: 'rec_cabbage_shrimp_pasta',
         name: '鮮甜高麗菜白蝦清炒麵',
         category: '輕食快炒',
-        image: '/src/assets/images/meal_salmon_set_1792268551441.jpg',
+        image: 'assets/images/meal_salmon_set_1792268551441.jpg',
         cookTimeMinutes: 16,
         tags: ['鮮美清炒', '優質蛋白', '高纖清爽'],
         allergens: ['甲殼海鮮'],
@@ -1460,7 +1507,7 @@
         id: 'rec_mushroom_chicken_soup_noodle',
         name: '鮮菇高麗菜暖心雞湯麵',
         category: '暖胃湯料理',
-        image: '/src/assets/images/meal_veggie_tofu_pot_1792268552747.jpg',
+        image: 'assets/images/meal_veggie_tofu_pot_1792268552747.jpg',
         cookTimeMinutes: 18,
         tags: ['低卡暖胃', '舒心補氣', '湯麵'],
         allergens: [],
@@ -1485,7 +1532,7 @@
         id: 'rec_shredded_pork_noodle',
         name: '蔥香肉絲時蔬乾拌麵',
         category: '家常台式',
-        image: '/src/assets/images/meal_pork_stirfry_1792268551371.jpg',
+        image: 'assets/images/meal_pork_stirfry_1792268551371.jpg',
         cookTimeMinutes: 14,
         tags: ['十分鐘快手', '香氣撲鼻', '經典小吃'],
         allergens: ['大豆'],
@@ -1510,7 +1557,7 @@
         id: 'rec_veggie_egg_rice',
         name: '鮮蔬高麗菜滑蛋炒飯',
         category: '家常台式',
-        image: '/src/assets/images/meal_tomato_egg_1792268551212.jpg',
+        image: 'assets/images/meal_tomato_egg_1792268551212.jpg',
         cookTimeMinutes: 15,
         tags: ['冰箱救星', '纖維滿滿', '蛋奶素'],
         allergens: ['雞蛋'],
@@ -1536,7 +1583,7 @@
         id: 'rec_blackpepper_pork_loin',
         name: '黑胡椒洋蔥彩椒炒肉絲',
         category: '輕食快炒',
-        image: '/src/assets/images/meal_pork_stirfry_1792268551371.jpg',
+        image: 'assets/images/meal_pork_stirfry_1792268551371.jpg',
         cookTimeMinutes: 15,
         tags: ['鑊氣十足', '微辛下飯', '清爽不膩'],
         allergens: ['大豆'],
@@ -1562,7 +1609,7 @@
         id: 'rec_broccoli_chicken_rice',
         name: '綠花椰蒜香嫩煎雞胸飯',
         category: '輕食快炒',
-        image: '/src/assets/images/meal_teriyaki_chicken_1792268550463.jpg',
+        image: 'assets/images/meal_teriyaki_chicken_1792268550463.jpg',
         cookTimeMinutes: 18,
         tags: ['健身首選', '乾淨飲食', '高蛋白'],
         allergens: [],
@@ -1587,7 +1634,7 @@
         id: 'rec_king_oyster_pork',
         name: '醬燒杏鮑菇豬肉片定食',
         category: '家常台式',
-        image: '/src/assets/images/meal_pork_stirfry_1792268551371.jpg',
+        image: 'assets/images/meal_pork_stirfry_1792268551371.jpg',
         cookTimeMinutes: 16,
         tags: ['多汁爽脆', '家常鹹香'],
         allergens: ['大豆'],
@@ -1612,7 +1659,7 @@
         id: 'rec_miso_tofu_veggie_rice',
         name: '清雅鮮菇野菜豆腐湯泡飯',
         category: '暖胃湯料理',
-        image: '/src/assets/images/meal_veggie_tofu_pot_1792268552747.jpg',
+        image: 'assets/images/meal_veggie_tofu_pot_1792268552747.jpg',
         cookTimeMinutes: 15,
         tags: ['純淨無負擔', '暖心宵夜', '低油鹽'],
         allergens: ['大豆'],
@@ -1636,7 +1683,7 @@
         id: 'rec_tomato_chicken_stew',
         name: '茄汁洋蔥燉雞腿肉飯',
         category: '異國風味',
-        image: '/src/assets/images/meal_tomato_egg_1792268551212.jpg',
+        image: 'assets/images/meal_tomato_egg_1792268551212.jpg',
         cookTimeMinutes: 22,
         tags: ['酸甜開胃', '食材共用', '茄紅素'],
         allergens: [],
@@ -2170,12 +2217,12 @@
             <!-- Recipe Image Slot (Authentic Culinary Photo with Clean SVG Fallback) -->
             <div class="relative h-44 w-full bg-stone-100 overflow-hidden cursor-pointer btn-view-recipe-detail" data-id="${recipe.id}">
               <img 
-                src="${recipe.image}" 
+                src="${getAssetUrl(recipe.image)}" 
                 alt="${recipe.name}" 
                 loading="lazy"
                 referrerPolicy="no-referrer"
                 class="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-                onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'400\\' height=\\'300\\' viewBox=\\'0 0 400 300\\' fill=\\'%23F4F7F5\\'><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' font-family=\\'sans-serif\\' font-size=\\'18\\' fill=\\'%234A6B5D\\'>🍳 ${encodeURIComponent(recipe.name)}</text></svg>';"
+                onerror="window.handleImageError(this, '${recipe.name}', '${recipe.image}')"
               />
               <div class="absolute bottom-2 left-2 bg-stone-900/80 backdrop-blur-xs text-white text-[11px] font-medium px-2 py-0.5 rounded">
                 ${recipe.category}
@@ -2512,7 +2559,7 @@
           <div class="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
             <div>
               <div class="h-36 bg-stone-100 overflow-hidden relative cursor-pointer btn-repo-view" data-id="${r.id}">
-                <img src="${r.image}" alt="${r.name}" loading="lazy" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'400\\' height=\\'300\\' viewBox=\\'0 0 400 300\\' fill=\\'%23F4F7F5\\'><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' font-family=\\'sans-serif\\' font-size=\\'18\\' fill=\\'%234A6B5D\\'>🍳 ${encodeURIComponent(r.name)}</text></svg>';" />
+                <img src="${getAssetUrl(r.image)}" alt="${r.name}" loading="lazy" class="w-full h-full object-cover" onerror="window.handleImageError(this, '${r.name}', '${r.image}')" />
                 <span class="absolute bottom-2 left-2 text-[10px] bg-stone-900/80 text-white px-2 py-0.5 rounded">${r.category}</span>
               </div>
               <div class="p-3.5">
@@ -2555,10 +2602,9 @@
       document.getElementById('modal-detail-cost').innerText = `食材使用成本約 NT$ ${calculateRecipeIngredientCost(recipe)}`;
       
       const img = document.getElementById('modal-detail-image');
-      img.src = recipe.image;
+      img.src = getAssetUrl(recipe.image);
       img.onerror = function() {
-        this.onerror = null;
-        this.src = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='300' viewBox='0 0 600 300' fill='%23F4F7F5'><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='22' fill='%234A6B5D'>🍳 ${encodeURIComponent(recipe.name)}</text></svg>`;
+        window.handleImageError(this, recipe.name, recipe.image);
       };
 
       // 過敏原
@@ -2646,7 +2692,7 @@
           <div class="replace-candidate-card border border-stone-200 hover:border-sage-600 rounded-xl p-3 cursor-pointer transition-all flex items-center justify-between" data-id="${cand.id}">
             <div class="flex items-center gap-3">
               <div class="w-12 h-12 rounded-lg bg-stone-100 overflow-hidden shrink-0">
-                <img src="${cand.image}" alt="${cand.name}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'100\\' height=\\'100\\'><rect fill=\\'%23eee\\' width=\\'100\\' height=\\'100\\'/></svg>';" />
+                <img src="${getAssetUrl(cand.image)}" alt="${cand.name}" class="w-full h-full object-cover" onerror="window.handleImageError(this, '${cand.name}', '${cand.image}')" />
               </div>
               <div>
                 <div class="font-bold text-stone-900 text-sm">${cand.name}</div>
