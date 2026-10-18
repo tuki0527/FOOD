@@ -522,9 +522,11 @@
           <p class="text-xs text-stone-500 mt-1">
             系統已根據您的偏好產生全新候選菜單。過去已標記「已完成」的餐次將會予以保留，不受影響。
           </p>
-        </div>
         <button id="btn-close-replan-modal" class="text-stone-400 hover:text-stone-700 p-1 text-lg">✕</button>
       </div>
+
+      <!-- Engine Source Banner (AI vs Local vs Fallback) -->
+      <div id="replan-engine-banner" class="rounded-xl p-3 text-xs flex items-center gap-2"></div>
 
       <!-- Comparison of Budget -->
       <div class="grid grid-cols-2 gap-3 text-xs">
@@ -742,13 +744,21 @@
           <div id="worker-url-box" class="pt-2">
             <label class="block text-[11px] font-semibold text-stone-600 mb-1">Cloudflare Worker 代理網址：</label>
             <div class="flex gap-2">
-              <input type="url" id="setting-worker-url" placeholder="https://my-meal-worker.workers.dev" class="flex-1 px-3 py-1.5 rounded-lg border border-stone-300 text-xs bg-white focus:outline-none focus:border-sage-600" />
+              <input type="text" id="setting-worker-url" placeholder="https://my-meal-worker.workers.dev" class="flex-1 px-3 py-1.5 rounded-lg border border-stone-300 text-xs bg-white focus:outline-none focus:border-sage-600" />
               <button type="button" id="btn-test-worker" class="px-3 py-1.5 bg-white border border-stone-300 hover:bg-stone-50 text-stone-700 text-xs rounded-lg font-medium whitespace-nowrap">
                 測試連線
               </button>
             </div>
-            <p class="text-[11px] text-stone-500 mt-1">
-              由 Cloudflare Worker Secrets 保管 Gemini API Key，前端絕不儲存或洩漏任何金鑰。若尚未部屬 Worker，系統將自動以高品質本地推薦演算法運行。
+            <div class="flex items-center justify-between mt-1.5">
+              <button type="button" id="btn-fill-dev-proxy" class="text-[11px] text-sage-700 hover:text-sage-900 font-semibold flex items-center gap-1">
+                <span>🔗</span>
+                <span>本機預覽：填入 AI Studio 內建代理 (/FOOD/api/gemini-proxy)</span>
+              </button>
+              <span id="worker-status-badge" class="text-[11px] text-stone-400 font-mono">尚未測試</span>
+            </div>
+            <p class="text-[11px] text-stone-500 mt-1.5">
+              • <strong>線上 GitHub Pages 部署</strong>：請填入您在 Cloudflare 部署的 Worker 網址（如 <code>https://&lt;name&gt;.workers.dev</code>）。<br/>
+              • <strong>AI Studio 開發預覽</strong>：可直接使用內建代理，由伺服器端環境安全呼叫 Gemini API。
             </p>
           </div>
         </div>
@@ -1710,6 +1720,17 @@
     const STORAGE_KEY = 'mealplanner_vibe_state_v1';
     const SCHEMA_VERSION = '1.2.0';
 
+    function getDetectedProxyUrl() {
+      const isDevHost = window.location.hostname.includes('run.app') || 
+                        window.location.hostname === 'localhost' || 
+                        window.location.hostname === '127.0.0.1';
+      if (isDevHost) {
+        const basePath = window.location.pathname.startsWith('/FOOD') ? '/FOOD' : '';
+        return `${window.location.origin}${basePath}/api/gemini-proxy`;
+      }
+      return '';
+    }
+
     const defaultState = {
       schemaVersion: SCHEMA_VERSION,
       preferences: {
@@ -1723,7 +1744,7 @@
         height: 172,
         weight: 65,
         recommendationMode: 'local', // 'local' or 'ai'
-        workerUrl: ''
+        workerUrl: getDetectedProxyUrl()
       },
       currentWeekOffset: 0, // 0: this week, 1: next week
       weeklyMenus: {}, // Keyed by weekId: e.g. "2026-W42" -> [{ date, recipeId, status, reason, completedAt, rating, actualSpend }]
@@ -1742,6 +1763,11 @@
         // Schema migrations & safety checks
         if (!parsed.schemaVersion || !parsed.preferences) {
           return { ...defaultState, ...parsed, schemaVersion: SCHEMA_VERSION };
+        }
+        // If in AI Studio / dev environment and workerUrl is empty, supply detected proxy URL
+        if (!parsed.preferences.workerUrl) {
+          const detected = getDetectedProxyUrl();
+          if (detected) parsed.preferences.workerUrl = detected;
         }
         return parsed;
       } catch (e) {
@@ -2038,26 +2064,65 @@
 
     // 產生或重新規劃菜單 (分流 AI 與 本地)
     async function planWeeklyMenu(forceNew = false) {
-      showLoading(true, '正在規劃七日晚餐...', '正在為您計算最佳食材共用與採買包裝');
+      const preferences = appState.preferences;
       const weekKey = getWeekKey(appState.currentWeekOffset);
       const existingMenu = appState.weeklyMenus[weekKey] || [];
-      const preferences = appState.preferences;
+
+      // 若選擇 AI 模式，但 workerUrl 為空
+      if (preferences.recommendationMode === 'ai' && !preferences.workerUrl) {
+        const devProxy = getDetectedProxyUrl();
+        if (devProxy) {
+          preferences.workerUrl = devProxy;
+          saveState();
+          showToast('已為您自動載入 AI Studio 本機代理網址！', 'info');
+        } else {
+          showToast('⚠️ 您已選擇 Gemini AI 推薦，但尚未設定 Worker 網址。請先至個人設定填寫或切換為本地演算法。', 'error');
+          openSettingsModal();
+          return;
+        }
+      }
+
+      showLoading(
+        true,
+        '正在規劃七日晚餐...',
+        preferences.recommendationMode === 'ai'
+          ? '正在請求 Google Gemini AI 分析飲食偏好與食材共用...'
+          : '正在為您計算最佳食材共用與採買包裝'
+      );
 
       try {
         let newPlan = null;
+        let planSource = 'local';
+        let aiErrorMsg = null;
 
-        // 若啟用 AI 推薦且有設定 Worker URL
-        if (preferences.recommendationMode === 'ai' && preferences.workerUrl) {
+        if (preferences.recommendationMode === 'ai') {
           try {
             newPlan = await fetchGeminiMenuFromWorker(preferences, existingMenu);
+            planSource = 'ai';
           } catch (aiErr) {
-            console.warn('AI API failed, falling back to local algorithm:', aiErr);
-            showToast('AI 代理回應失敗，自動切換至智能本地推薦演算法', 'info');
+            console.warn('AI API failed:', aiErr);
+            aiErrorMsg = aiErr.message || '無法連線至 AI 代理';
+            showLoading(false);
+            
+            const confirmFallback = confirm(`⚠️ Gemini AI 呼叫失敗：${aiErrorMsg}\n\n是否改用「智能本地演算法」作為備援菜單？\n（系統將明確標示為備援，絕不假裝 AI 成功）`);
+            if (!confirmFallback) {
+              showToast(`已取消菜單規劃：${aiErrorMsg}`, 'info');
+              return;
+            }
+
+            showLoading(true, '正在啟用本地推薦備援...', '智能計算均衡菜單中');
             newPlan = generateLocalWeeklyPlan(preferences, existingMenu);
+            planSource = 'fallback';
+            // 替換理由標示為備援，不可混淆
+            newPlan.forEach(d => {
+              if (d.status !== 'completed') {
+                d.reason = `【AI 連線失敗備援】${d.reason}`;
+              }
+            });
           }
         } else {
-          // 使用純本地推薦演算法
           newPlan = generateLocalWeeklyPlan(preferences, existingMenu);
+          planSource = 'local';
         }
 
         // 驗證新計畫之有效性
@@ -2073,7 +2138,9 @@
           weekKey,
           days: newPlan,
           groceryTotal: groceryCheck.totalGroceryCost,
-          usageTotal: groceryCheck.totalUsageCost
+          usageTotal: groceryCheck.totalUsageCost,
+          planSource,
+          aiErrorMsg
         };
 
         renderReplanDraftModal();
@@ -2085,12 +2152,16 @@
       }
     }
 
-    // 呼叫 Cloudflare Worker 取得 Gemini AI 推薦
+    // 呼叫 Cloudflare Worker / 本地代理取得 Gemini AI 推薦
     async function fetchGeminiMenuFromWorker(preferences, existingMenu) {
       const dates = getWeekDates(appState.currentWeekOffset).map(d => d.dateStr);
       const availableRecipes = RECIPES_DB
         .filter(r => isRecipeAllowed(r, preferences))
         .map(r => ({ id: r.id, name: r.name, category: r.category, protein: r.primaryProtein }));
+
+      if (availableRecipes.length < 3) {
+        throw new Error('可用料理庫過少（可能過敏原或忌口條件過於嚴格），請放寬偏好設定');
+      }
 
       const payload = {
         action: 'generate_week',
@@ -2106,35 +2177,49 @@
       });
 
       if (!resp.ok) {
-        throw new Error(`Worker HTTP ${resp.status}`);
+        const errData = await resp.json().catch(() => ({}));
+        throw new Error(errData.error || `Worker HTTP ${resp.status}`);
       }
 
       const data = await resp.json();
-      if (!data.days || !Array.isArray(data.days)) {
-        throw new Error('AI 回傳格式不符合預期');
+      if (!data.ok && data.error) {
+        throw new Error(data.error);
+      }
+      if (!data.days || !Array.isArray(data.days) || data.days.length === 0) {
+        throw new Error('Gemini AI 回傳格式未包含有效 days 清單');
       }
 
-      // 由 JavaScript 嚴格驗證 AI 回傳的 recipeId 與過敏限制
+      // 由 JavaScript 嚴格硬性驗證 AI 回傳的 recipeId 與過敏限制
       const verifiedDays = [];
-      for (const d of data.days) {
-        const recipe = RECIPES_DB.find(r => r.id === d.recipeId);
-        if (!recipe || !isRecipeAllowed(recipe, preferences)) {
-          // AI 挑了無效或禁用的料理，退回本地安全料理
-          const fallback = RECIPES_DB.find(r => isRecipeAllowed(r, preferences));
-          verifiedDays.push({
-            date: d.date,
-            recipeId: fallback.id,
-            status: 'planned',
-            reason: 'AI 修正推薦：符合安全忌口'
-          });
-        } else {
-          verifiedDays.push({
-            date: d.date,
-            recipeId: recipe.id,
-            status: 'planned',
-            reason: `AI 推薦：${d.reason || '營養均衡'}`
-          });
+      for (let i = 0; i < dates.length; i++) {
+        const dateStr = dates[i];
+        const aiDay = data.days.find(d => d.date === dateStr) || data.days[i];
+        
+        let chosenRecipe = null;
+        let reasonText = '';
+
+        if (aiDay && aiDay.recipeId) {
+          const matched = RECIPES_DB.find(r => r.id === aiDay.recipeId);
+          if (matched && isRecipeAllowed(matched, preferences)) {
+            chosenRecipe = matched;
+            reasonText = `AI 推薦：${aiDay.reason || '飲食目標均衡搭配'}`;
+          }
         }
+
+        // 若 AI 捏造了不存在的 ID 或踩到過敏忌口雷區，由本地安全庫替換並具實標記
+        if (!chosenRecipe) {
+          chosenRecipe = availableRecipes.find(r => !verifiedDays.some(v => v.recipeId === r.id)) || availableRecipes[0];
+          const fullRecipe = RECIPES_DB.find(r => r.id === chosenRecipe.id);
+          chosenRecipe = fullRecipe;
+          reasonText = `AI 修正推薦（安全過濾）：符合忌口排除`;
+        }
+
+        verifiedDays.push({
+          date: dateStr,
+          recipeId: chosenRecipe.id,
+          status: 'planned',
+          reason: reasonText
+        });
       }
 
       // 保留已完成之日期
@@ -2648,13 +2733,15 @@
       document.getElementById('modal-recipe-detail').classList.remove('hidden');
     }
 
-    // 開啟單日料理替換 Modal
+    // 開啟單日料理替換 Modal (支援 AI 推薦與本地演算法)
     let activeReplaceDate = null;
     let selectedReplacementId = null;
+    let selectedReplacementReason = '';
 
-    function openReplaceModal(dateStr, currentRecipeId) {
+    async function openReplaceModal(dateStr, currentRecipeId) {
       activeReplaceDate = dateStr;
       selectedReplacementId = null;
+      selectedReplacementReason = '';
       const weekKey = getWeekKey(appState.currentWeekOffset);
       const currentMenu = appState.weeklyMenus[weekKey] || [];
       const currentRecipe = RECIPES_DB.find(r => r.id === currentRecipeId);
@@ -2664,17 +2751,127 @@
       document.getElementById('replace-modal-current-cost').innerText = 
         currentRecipe ? `使用成本約 NT$ ${calculateRecipeIngredientCost(currentRecipe)}` : '';
 
-      // 計算替換候選 (排除當前料理、過敏忌口，並模擬整週採買變動)
-      const allowed = RECIPES_DB.filter(r => r.id !== currentRecipeId && isRecipeAllowed(r, appState.preferences));
-      
-      // 隨機或挑選前 3 道代表性料理
-      const candidates = allowed.slice(0, 3);
       const container = document.getElementById('replace-candidates-container');
+      document.getElementById('btn-confirm-replace').disabled = true;
+      document.getElementById('replace-budget-delta-box').classList.add('hidden');
+      document.getElementById('modal-replace-dish').classList.remove('hidden');
+
+      const preferences = appState.preferences;
+      const isAiMode = preferences.recommendationMode === 'ai';
+
+      // 取得所有安全合格的可用料理（排除原料理、嚴格過濾過敏原與忌口食材）
+      const allowed = RECIPES_DB.filter(r => r.id !== currentRecipeId && isRecipeAllowed(r, preferences));
+      if (allowed.length === 0) {
+        container.innerHTML = `<div class="p-6 text-center text-xs text-stone-400">沒有其他符合您忌口限制的可用料理</div>`;
+        return;
+      }
+
+      let candidatesWithReason = [];
+      let isAiResult = false;
+      let fallbackNotice = '';
+
+      if (isAiMode) {
+        let workerUrl = preferences.workerUrl;
+        if (!workerUrl) {
+          workerUrl = getDetectedProxyUrl();
+        }
+
+        if (workerUrl) {
+          container.innerHTML = `
+            <div class="py-10 text-center space-y-3">
+              <div class="w-8 h-8 border-2 border-sage-200 border-t-sage-600 rounded-full animate-spin mx-auto"></div>
+              <div class="text-xs font-semibold text-stone-800">🤖 Gemini AI 正在分析營養與食材共用...</div>
+              <div class="text-[11px] text-stone-400">挑選能降低整週採買負擔或符合飲食目標的最佳替換菜色</div>
+            </div>
+          `;
+
+          try {
+            const payload = {
+              action: 'replace_day',
+              targetDate: dateStr,
+              currentDishId: currentRecipeId,
+              preferences,
+              availableRecipes: allowed.map(r => ({
+                id: r.id,
+                name: r.name,
+                category: r.category,
+                protein: r.primaryProtein
+              }))
+            };
+
+            const resp = await fetch(workerUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+
+            if (!resp.ok) {
+              const errData = await resp.json().catch(() => ({}));
+              throw new Error(errData.error || `Worker HTTP ${resp.status}`);
+            }
+
+            const data = await resp.json();
+            if (data.candidates && Array.isArray(data.candidates) && data.candidates.length > 0) {
+              // 嚴格檢驗 AI 回傳的 recipeId 與過敏限制
+              for (const cand of data.candidates) {
+                const recipe = RECIPES_DB.find(r => r.id === cand.recipeId);
+                if (recipe && recipe.id !== currentRecipeId && isRecipeAllowed(recipe, preferences)) {
+                  candidatesWithReason.push({
+                    recipe,
+                    reason: cand.reason || 'AI 推薦替換',
+                    source: 'ai'
+                  });
+                }
+              }
+            }
+
+            if (candidatesWithReason.length > 0) {
+              isAiResult = true;
+            } else {
+              fallbackNotice = 'AI 回傳之候選料理未通過安全驗證，已切換至本地智能推薦。';
+            }
+          } catch (err) {
+            console.warn('AI replace_day failed:', err);
+            fallbackNotice = `AI 連線失敗 (${err.message})，已改用本地智能推薦作為備援。`;
+          }
+        } else {
+          fallbackNotice = '尚未設定 Cloudflare Worker 網址，已使用本地智能推薦作為替換候選。';
+        }
+      }
+
+      // 若為本地模式或 AI 呼叫失敗，改用智能本地演算法挑選 3 道
+      if (candidatesWithReason.length === 0) {
+        const sorted = allowed.slice().sort((a, b) => {
+          let scoreA = 0, scoreB = 0;
+          if (preferences.dietGoal === '高蛋白質增肌') {
+            if (['chicken', 'seafood'].includes(a.primaryProtein)) scoreA += 10;
+            if (['chicken', 'seafood'].includes(b.primaryProtein)) scoreB += 10;
+          }
+          return scoreB - scoreA;
+        });
+        const chosen = sorted.slice(0, 3);
+        candidatesWithReason = chosen.map(recipe => ({
+          recipe,
+          reason: `本地推薦：${recipe.primaryProtein === 'tofu' || recipe.primaryProtein === 'egg' ? '經濟實惠且易消化' : '高蛋白質且營養豐富'}`,
+          source: 'local'
+        }));
+      }
+
       const basePlan = calculateWeeklyGroceryPlan(currentMenu);
       const baseTotalCost = basePlan.totalGroceryCost;
 
-      container.innerHTML = candidates.map(cand => {
-        // 模擬如果替換後的整週菜單
+      let html = '';
+      if (fallbackNotice) {
+        html += `
+          <div class="p-2.5 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-[11px] flex items-center gap-1.5 mb-2">
+            <span>⚠️</span>
+            <span>${fallbackNotice}</span>
+          </div>
+        `;
+      }
+
+      html += candidatesWithReason.map(item => {
+        const cand = item.recipe;
         const simulatedMenu = currentMenu.map(d => d.date === dateStr ? { ...d, recipeId: cand.id } : d);
         const simPlan = calculateWeeklyGroceryPlan(simulatedMenu);
         const diff = simPlan.totalGroceryCost - baseTotalCost;
@@ -2688,20 +2885,30 @@
           diffLabel = `<span class="text-stone-500 font-semibold">±NT$ 0 (採買總額不變)</span>`;
         }
 
+        const badge = item.source === 'ai' 
+          ? '<span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">🤖 AI 推薦</span>'
+          : '<span class="text-[10px] bg-stone-100 text-stone-600 font-medium px-1.5 py-0.5 rounded">💡 本地候選</span>';
+
         return `
-          <div class="replace-candidate-card border border-stone-200 hover:border-sage-600 rounded-xl p-3 cursor-pointer transition-all flex items-center justify-between" data-id="${cand.id}">
+          <div class="replace-candidate-card border border-stone-200 hover:border-sage-600 rounded-xl p-3 cursor-pointer transition-all flex items-center justify-between" data-id="${cand.id}" data-reason="${item.source === 'ai' ? 'AI 替換：' + item.reason : item.reason}">
             <div class="flex items-center gap-3">
               <div class="w-12 h-12 rounded-lg bg-stone-100 overflow-hidden shrink-0">
                 <img src="${getAssetUrl(cand.image)}" alt="${cand.name}" class="w-full h-full object-cover" onerror="window.handleImageError(this, '${cand.name}', '${cand.image}')" />
               </div>
               <div>
-                <div class="font-bold text-stone-900 text-sm">${cand.name}</div>
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-stone-900 text-sm">${cand.name}</span>
+                  ${badge}
+                </div>
                 <div class="text-[11px] text-stone-500 mt-0.5">
                   約 ${calculateRecipeNutrition(cand)} kcal · ${cand.category}
                 </div>
+                <div class="text-[11px] text-stone-600 mt-0.5 max-w-xs truncate">
+                  💡 ${item.reason}
+                </div>
               </div>
             </div>
-            <div class="text-right text-xs">
+            <div class="text-right text-xs shrink-0 ml-2">
               <div class="text-[11px] text-stone-400">整週採買變動</div>
               <div class="tabular-nums">${diffLabel}</div>
             </div>
@@ -2709,8 +2916,7 @@
         `;
       }).join('');
 
-      document.getElementById('btn-confirm-replace').disabled = true;
-      document.getElementById('replace-budget-delta-box').classList.add('hidden');
+      container.innerHTML = html;
 
       // 監聽候選卡片點擊
       document.querySelectorAll('.replace-candidate-card').forEach(card => {
@@ -2721,6 +2927,7 @@
           const el = e.currentTarget;
           el.classList.add('border-sage-600', 'bg-sage-50/50', 'ring-2', 'ring-sage-300');
           selectedReplacementId = el.getAttribute('data-id');
+          selectedReplacementReason = el.getAttribute('data-reason') || '';
           document.getElementById('btn-confirm-replace').disabled = false;
 
           // 計算預算變動資訊
@@ -2746,8 +2953,6 @@
           }
         });
       });
-
-      document.getElementById('modal-replace-dish').classList.remove('hidden');
     }
 
     // 確認執行替換單日料理 (只更新該日，其餘 6 日絕對不變)
@@ -2762,7 +2967,7 @@
           return {
             ...item,
             recipeId: selectedReplacementId,
-            reason: `手動替換：${newRecipe ? newRecipe.name : ''}`
+            reason: selectedReplacementReason || `手動替換：${newRecipe ? newRecipe.name : ''}`
           };
         }
         return item;
@@ -2789,6 +2994,21 @@
       document.getElementById('replan-old-cost').innerText = `NT$ ${oldPlan.totalGroceryCost.toLocaleString()}`;
       document.getElementById('replan-new-cost').innerText = `NT$ ${draft.groceryTotal.toLocaleString()}`;
 
+      // 顯眼顯示推薦來源（AI 推薦 vs AI 備援 vs 本地推薦）
+      const banner = document.getElementById('replan-engine-banner');
+      if (banner) {
+        if (draft.planSource === 'ai') {
+          banner.className = 'bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl p-3 text-xs flex items-center gap-2.5';
+          banner.innerHTML = `<span class="text-base">🤖</span><div><strong>Gemini AI 推薦已就緒：</strong> 本草稿由 Google Gemini 生成式 AI 依據您的飲食偏好、過敏排除與食材共用原則親自計算推薦。</div>`;
+        } else if (draft.planSource === 'fallback') {
+          banner.className = 'bg-amber-50 border border-amber-300 text-amber-900 rounded-xl p-3 text-xs flex items-start gap-2.5';
+          banner.innerHTML = `<span class="text-base shrink-0">⚠️</span><div><strong>【AI 連線失敗備援】</strong> 由於 AI 代理回應異常（<code>${draft.aiErrorMsg || '連線錯誤'}</code>），系統已改由「智能本地推薦演算法」產生安全備援菜單，明確標記供您審核。</div>`;
+        } else {
+          banner.className = 'bg-stone-50 border border-stone-200 text-stone-700 rounded-xl p-3 text-xs flex items-center gap-2.5';
+          banner.innerHTML = `<span class="text-base">💡</span><div><strong>智能本地推薦演算法：</strong> 完全離線運行，依據熱量、蛋白質輪替與包裝共用原則規劃。</div>`;
+        }
+      }
+
       const tbody = document.getElementById('replan-draft-table-body');
       tbody.innerHTML = draft.days.map(d => {
         const recipe = RECIPES_DB.find(r => r.id === d.recipeId);
@@ -2801,7 +3021,7 @@
             </td>
             <td class="p-2.5 font-bold text-stone-900">${recipe ? recipe.name : ''}</td>
             <td class="p-2.5 text-right tabular-nums text-stone-600">約 ${kcal} kcal</td>
-            <td class="p-2.5 text-stone-500 text-[11px]">${d.reason}</td>
+            <td class="p-2.5 text-stone-600 text-[11px]">${d.reason}</td>
           </tr>
         `;
       }).join('');
@@ -3005,24 +3225,40 @@
 
     function updateEngineIndicator() {
       const mode = appState.preferences.recommendationMode;
+      const workerUrl = appState.preferences.workerUrl;
       const label = document.getElementById('current-engine-label');
+      if (!label) return;
+
       if (mode === 'ai') {
-        label.innerText = 'Gemini AI 推薦代理';
-        label.className = 'text-sage-700 font-semibold';
+        if (workerUrl) {
+          label.innerHTML = '🤖 Gemini AI 推薦代理 <span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-normal">已連線</span>';
+          label.className = 'text-emerald-700 font-semibold cursor-pointer';
+          label.title = '點擊修改 AI 設定或更換 Worker 網址';
+        } else {
+          label.innerHTML = '⚠️ Gemini AI <span class="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-normal">未設定 Worker 網址</span>';
+          label.className = 'text-amber-600 font-semibold cursor-pointer';
+          label.title = '點擊前往設定 Worker URL';
+        }
       } else {
-        label.innerText = '智能本地演算法 (離線支援)';
-        label.className = 'text-stone-600';
+        label.innerHTML = '💡 智能本地演算法 <span class="text-[10px] bg-stone-100 text-stone-600 px-1.5 py-0.5 rounded font-normal">離線免金鑰</span>';
+        label.className = 'text-stone-600 cursor-pointer';
+        label.title = '點擊切換為 Gemini AI 推薦';
       }
     }
 
     // 測試 Worker 連線
     async function testWorkerConnection() {
       const url = document.getElementById('setting-worker-url').value.trim();
+      const badge = document.getElementById('worker-status-badge');
       if (!url) {
-        showToast('請先填入 Cloudflare Worker 網址', 'error');
+        showToast('請先填入 Cloudflare Worker 網址或點擊填入本機代理', 'error');
+        if (badge) {
+          badge.innerText = '請先填入網址';
+          badge.className = 'text-[11px] text-coral-600 font-mono';
+        }
         return;
       }
-      showLoading(true, '正在測試 Worker 連線...', '發送 Ping 檢查代理狀態');
+      showLoading(true, '正在測試代理連線...', `發送 Ping 檢查代理狀態：${url}`);
       try {
         const resp = await fetch(url, {
           method: 'POST',
@@ -3030,14 +3266,28 @@
           body: JSON.stringify({ action: 'ping' })
         });
         showLoading(false);
-        if (resp.status === 400 || resp.ok) {
-          showToast('✓ Cloudflare Worker 連線成功！', 'success');
+        const data = await resp.json().catch(() => ({}));
+        if (resp.ok && data.ok) {
+          showToast(`✓ 連線成功！${data.message || 'Gemini 代理正常運作'}`, 'success');
+          if (badge) {
+            badge.innerText = '✓ 連線正常 (HTTP 200)';
+            badge.className = 'text-[11px] text-emerald-600 font-bold font-mono';
+          }
         } else {
-          showToast(`Worker 回應 HTTP ${resp.status}，請檢查 Secrets 與部署狀態`, 'error');
+          const err = data.error || `HTTP ${resp.status}`;
+          showToast(`連線失敗: ${err}`, 'error');
+          if (badge) {
+            badge.innerText = `✕ 失敗: ${err.substring(0, 30)}`;
+            badge.className = 'text-[11px] text-coral-600 font-mono';
+          }
         }
       } catch (err) {
         showLoading(false);
-        showToast(`無法連線至 Worker (${err.message})`, 'error');
+        showToast(`無法連線至代理 (${err.message})`, 'error');
+        if (badge) {
+          badge.innerText = '✕ 網路或 CORS 異常';
+          badge.className = 'text-[11px] text-coral-600 font-mono';
+        }
       }
     }
 
@@ -3137,6 +3387,9 @@
         document.getElementById(`m-nav-btn-${t}`)?.addEventListener('click', () => switchTab(t));
       });
 
+      // 點擊引擎指示器前往設定
+      document.getElementById('current-engine-label')?.parentElement?.addEventListener('click', openSettingsModal);
+
       // 週別切換 (本週 vs 下週)
       document.getElementById('btn-this-week').addEventListener('click', () => {
         appState.currentWeekOffset = 0;
@@ -3170,6 +3423,17 @@
       document.getElementById('setting-height').addEventListener('input', calculateAndDisplayBmi);
       document.getElementById('setting-weight').addEventListener('input', calculateAndDisplayBmi);
       document.getElementById('btn-test-worker').addEventListener('click', testWorkerConnection);
+
+      // 點擊自動填入本機代理
+      document.getElementById('btn-fill-dev-proxy')?.addEventListener('click', () => {
+        const proxy = getDetectedProxyUrl();
+        if (proxy) {
+          document.getElementById('setting-worker-url').value = proxy;
+          showToast('已填入 AI Studio 內建代理網址！請點擊「測試連線」驗證。', 'success');
+        } else {
+          showToast('目前不在本機/開發預覽環境，請填寫 Cloudflare Worker 網址。', 'info');
+        }
+      });
 
       // 關閉料理詳情 Modal
       document.getElementById('btn-close-recipe-detail').addEventListener('click', () => {
