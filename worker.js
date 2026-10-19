@@ -25,7 +25,7 @@ const CORS_HEADERS = {
 };
 
 const SUPPORTED_ACTIONS = ['generate_week', 'replace_day', 'generate_recipes', 'ping'];
-const CANDIDATE_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+const CANDIDATE_MODELS = ['gemini-3.5-flash', 'gemini-3.5-flash-lite'];
 
 function normalizeName(value) {
   return String(value || '').normalize('NFKC').replace(/[\s、，,。．.・\-—_]/g, '').toLowerCase();
