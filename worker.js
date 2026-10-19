@@ -1,14 +1,20 @@
 /**
- * Cloudflare Worker for AI Weekly Meal Planner (AI 個人化每週料理規劃)
+ * Cloudflare Worker for AI Weekly Meal Planner (AI 個人化每週料理規劃 - 小資日嚐)
  * Secure proxy to Google Gemini API
  * 
+ * Supported Actions:
+ * - 'generate_week'    : 規劃一週七日晚餐菜單
+ * - 'replace_day'       : 單日晚餐替換候選料理推薦
+ * - 'generate_recipes' : 生成 5 道全新、不重複且符合個人偏好與過敏排除的一人份料理食譜
+ * - 'ping'             : 快速健康檢查與支援功能探測
+ * 
  * Features:
- * - CORS preflight and request handling
- * - Method & Payload validation (<10KB)
+ * - Full CORS support for GitHub Pages (tuki0527.github.io), localhost, and custom domains
+ * - Payload size limit protection (50KB)
  * - Safe API Key reading from Cloudflare Worker Secrets (env.GEMINI_API_KEY)
- * - Timeout guard (15s) with AbortController
- * - System prompts enforcing recipe ID validation and pure JSON responses
- * - Error isolation preventing sensitive credential leaks
+ * - Multi-model fallback: automatically tries gemini-3.8-flash, then gemini-3.5-flash-lite, then gemini-3.5-flash on 503/429
+ * - Strict JSON extraction & markdown fence stripping
+ * - Error isolation protecting sensitive credentials
  */
 
 const CORS_HEADERS = {
@@ -17,6 +23,9 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type',
   'Access-Control-Max-Age': '86400',
 };
+
+const SUPPORTED_ACTIONS = ['generate_week', 'replace_day', 'generate_recipes', 'ping'];
+const CANDIDATE_MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3.5-flash'];
 
 export default {
   async fetch(request, env, ctx) {
@@ -36,21 +45,21 @@ export default {
       );
     }
 
-    // 3. Payload size limit (protect against abuse)
+    // 3. Payload size limit (50KB limit to accommodate rich ingredient & history payload)
     const contentLength = request.headers.get('content-length');
-    if (contentLength && parseInt(contentLength, 10) > 15000) {
+    if (contentLength && parseInt(contentLength, 10) > 50000) {
       return new Response(
-        JSON.stringify({ error: 'Payload too large. Maximum size is 15KB.' }),
+        JSON.stringify({ error: 'Payload too large. Maximum size is 50KB.' }),
         { status: 413, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
       );
     }
 
-    // 4. Verify API Key is provisioned
+    // 4. Verify API Key is provisioned in Cloudflare Secrets
     const apiKey = env.GEMINI_API_KEY;
     if (!apiKey) {
       return new Response(
         JSON.stringify({
-          error: 'Cloudflare Worker 尚未設定 GEMINI_API_KEY Secret。請先於 Cloudflare 後台綁定 API 金鑰。',
+          error: 'Cloudflare Worker 尚未設定 GEMINI_API_KEY Secret。請至 Cloudflare 後台 Settings -> Variables and Secrets 新增 GEMINI_API_KEY。',
           code: 'MISSING_API_KEY',
         }),
         { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
@@ -68,25 +77,51 @@ export default {
       );
     }
 
-    const { action, preferences, availableRecipes, dates, currentDishId, targetDate } = requestData;
+    const {
+      action,
+      preferences,
+      availableRecipes,
+      dates,
+      currentDishId,
+      targetDate,
+      existingRecipeNames,
+      mealHistorySummary,
+      availableIngredients,
+    } = requestData;
 
-    if (!action || !['generate_week', 'replace_day'].includes(action)) {
+    if (!action || !SUPPORTED_ACTIONS.includes(action)) {
       return new Response(
-        JSON.stringify({ error: 'Invalid action. Must be generate_week or replace_day.' }),
+        JSON.stringify({
+          error: 'Invalid action. Supported actions: generate_week, replace_day, generate_recipes, ping.',
+          supportedActions: SUPPORTED_ACTIONS,
+        }),
         { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
       );
     }
 
-    // 6. Build the specialized prompt for Gemini
-    let systemInstruction = `你是一位專業的個人化營養與每週料理規劃師。
+    // 6. Fast Health Ping Check
+    if (action === 'ping') {
+      return new Response(
+        JSON.stringify({
+          status: 'ok',
+          message: 'Cloudflare Worker 代理運行正常',
+          supportedActions: SUPPORTED_ACTIONS,
+          models: CANDIDATE_MODELS,
+        }),
+        { status: 200, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 7. Build the specialized prompt for Gemini
+    const systemInstruction = `你是一位專業的個人化營養與料理規劃大師。
 重要規則：
-1. 你必須【只能】從給定的料理清單中挑選 recipeId，絕對不可自行捏造不存在的料理或食材 ID！
-2. 絕對不可推薦包含使用者忌口或過敏原 (allergens) 的料理。
-3. 兼顧蛋白質來源多樣性（雞肉、豬肉、海鮮、豆腐、蛋類）與食材共用原則，降低採買成本。
-4. 嚴格輸出合法的 JSON，不得包含任何 Markdown 代碼塊（例如不要包在 \`\`\`json 內），直接輸出純 JSON 格式。`;
+1. 嚴格輸出合法的純 JSON 格式，不得包含任何 Markdown 代碼塊（例如絕不要用 \`\`\`json 包覆），直接輸出純 JSON。
+2. 絕對不可推薦包含使用者忌口或過敏原 (allergens) 的料理！若偏好與過敏衝突，過敏安全為最高絕對優先。
+3. 兼顧蛋白質來源多樣性（雞肉、豬肉、海鮮、豆腐、蛋類）與一人份烹調便利性。`;
 
     let userPrompt = '';
 
+    // Action 1: 七日菜單生成 (完全保護既有功能)
     if (action === 'generate_week') {
       userPrompt = `請為以下偏好規劃 7 天晚餐（固定一人份）：
 - 使用者飲食目標：${preferences?.dietGoal || '均衡飲食'}
@@ -111,7 +146,9 @@ ${JSON.stringify(availableRecipes, null, 1)}
     }
   ]
 }`;
-    } else if (action === 'replace_day') {
+    }
+    // Action 2: 單餐替換 (完全保護既有功能)
+    else if (action === 'replace_day') {
       userPrompt = `使用者想要替換 ${targetDate} 的晚餐料理（原料理 ID: ${currentDishId}）。
 - 使用者飲食目標：${preferences?.dietGoal || '均衡飲食'}
 - 過敏與絕對排除：${(preferences?.allergens || []).join(', ') || '無'}
@@ -131,69 +168,159 @@ ${JSON.stringify(availableRecipes, null, 1)}
   ]
 }`;
     }
+    // Action 3: AI 生成 5 道料理 (新增功能)
+    else if (action === 'generate_recipes') {
+      const existingListStr = (existingRecipeNames || []).join('、');
+      const allergensStr = (preferences?.allergens || []).join('、') || '無';
+      const dislikedStr = (preferences?.dislikedIngredients || []).join('、') || '無';
+      const likedStr = (preferences?.likedIngredients || []).join('、') || '無特別指定';
+      const historyStr = mealHistorySummary
+        ? `常吃/高頻料理: ${(mealHistorySummary.frequentDishes || []).join('、') || '無'}；高評分料理: ${(mealHistorySummary.highRatedDishes || []).join('、') || '無'}`
+        : '無歷史紀錄（請生成多樣化料理，涵蓋台式家常、日式定食、韓式風味、清爽輕食、暖胃湯料理等）';
 
-    // 7. Request to Google Gemini API with 15s timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+      userPrompt = `請為單人晚餐規劃產生【剛好 5 道】全新、具備多樣性的一人份料理食譜。
 
-    try {
-      const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+【使用者條件】
+- 飲食目標：${preferences?.dietGoal || '均衡飲食'}
+- 偏好風格：${preferences?.cuisineStyle || '多樣家常'}
+- 喜愛食材：${likedStr}
+- 歷史用餐回饋：${historyStr}
+- 🚫 嚴格排除過敏原（絕對不可包含）：${allergensStr}
+- 🚫 忌口避開食材：${dislikedStr}
 
-      const geminiPayload = {
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: `${systemInstruction}\n\n${userPrompt}` }],
+【重複限制（非常重要）】
+1. 本次生成的 5 道料理之間不得重複。
+2. 絕對不可與以下現有料理重複或僅改菜名：${existingListStr}
+3. 必須涵蓋不同蛋白質（雞、豬、海鮮、豆腐、蛋）與烹調方式（煎、炒、燉、煲、蒸）。
+
+【現有超市食材庫參考（可優先使用以下食材，亦可新增常見超市食材）】
+${JSON.stringify(availableIngredients || [], null, 1)}
+
+請直接回傳符合以下 JSON 格式（剛好 5 道料理）：
+{
+  "mode": "ai",
+  "recipes": [
+    {
+      "name": "料理名稱（繁體中文，具體吸引人，不可與既有名稱重複）",
+      "category": "料理類別（如：家常台式、日式定食、異國風味、暖胃湯料理、清爽輕食、韓式料理）",
+      "description": "25字以內料理特色與口感介紹",
+      "cookTimeMinutes": 20,
+      "primaryProtein": "chicken 或 pork 或 seafood 或 tofu 或 egg 或 other",
+      "tags": ["AI 生成", "特色標籤1", "特色標籤2"],
+      "allergens": ["若含有大豆、雞蛋、海鮮魚類、甲殼海鮮請列出，無則空陣列"],
+      "ingredients": [
+        {
+          "name": "食材名稱（如：去骨雞腿排、洋蔥、綠花椰菜、純釀造醬油、蒜頭）",
+          "ingredientId": "若對應現有食材請填現有ID，若為新食材可為空字串",
+          "amount": 150,
+          "unit": "g 或 顆 或 份 或 ml",
+          "isPantry": false,
+          "estimatedKcal": 180,
+          "estimatedCost": 45
+        }
+      ],
+      "steps": [
+        "步驟 1：詳細洗切備料說明...",
+        "步驟 2：烹調下鍋與火候說明...",
+        "步驟 3：調味與收汁說明...",
+        "步驟 4：起鍋擺盤與食用建議..."
+      ]
+    }
+  ]
+}`;
+    }
+
+    // 8. Call Gemini with multi-model fallback and timeout protection
+    let lastError = null;
+    let geminiResult = null;
+
+    for (const modelName of CANDIDATE_MODELS) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+      try {
+        const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+        const geminiPayload = {
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: `${systemInstruction}\n\n${userPrompt}` }],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.4,
+            maxOutputTokens: 3500,
+            responseMimeType: 'application/json',
           },
-        ],
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 1500,
-          responseMimeType: 'application/json',
-        },
-      };
+        };
 
-      const geminiResponse = await fetch(geminiEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(geminiPayload),
-        signal: controller.signal,
-      });
+        const res = await fetch(geminiEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(geminiPayload),
+          signal: controller.signal,
+        });
 
-      clearTimeout(timeoutId);
+        clearTimeout(timeoutId);
 
-      if (!geminiResponse.ok) {
-        const errorText = await geminiResponse.text();
-        return new Response(
-          JSON.stringify({
-            error: 'Google Gemini API 回應錯誤',
-            status: geminiResponse.status,
-            details: errorText.substring(0, 300),
-          }),
-          { status: 502, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
-        );
+        if (res.ok) {
+          geminiResult = await res.json();
+          break; // Succeeded!
+        }
+
+        const errText = await res.text();
+        lastError = { status: res.status, details: errText.substring(0, 300) };
+
+        // If error is 503 or 429, continue to next fallback model
+        if ([503, 429, 500, 404].includes(res.status)) {
+          continue;
+        } else {
+          break; // Client error like bad payload or invalid key, stop trying
+        }
+      } catch (err) {
+        clearTimeout(timeoutId);
+        lastError = { status: err.name === 'AbortError' ? 504 : 500, details: err.message };
+        continue;
       }
+    }
 
-      const geminiResult = await geminiResponse.json();
+    if (!geminiResult) {
+      return new Response(
+        JSON.stringify({
+          error: 'Google Gemini API 請求失敗，所有備援模型暫時無法回應',
+          lastError,
+        }),
+        { status: 502, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 9. Extract and validate JSON response
+    try {
       const rawText = geminiResult.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
 
-      // Clean markdown fences if any
-      const cleanedText = rawText.replace(/^```json\s*/, '').replace(/```\s*$/, '').trim();
+      let cleanedText = rawText.trim();
+      if (cleanedText.startsWith('```')) {
+        cleanedText = cleanedText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+      }
+      const firstBrace = cleanedText.indexOf('{');
+      const lastBrace = cleanedText.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        cleanedText = cleanedText.slice(firstBrace, lastBrace + 1);
+      }
+
       const parsedData = JSON.parse(cleanedText);
 
       return new Response(JSON.stringify(parsedData), {
         status: 200,
         headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
       });
-    } catch (err) {
-      clearTimeout(timeoutId);
-      const isTimeout = err.name === 'AbortError';
+    } catch (parseErr) {
       return new Response(
         JSON.stringify({
-          error: isTimeout ? '請求 Gemini API 超時（超過 15 秒）' : 'Worker 代理請求失敗',
-          message: err.message,
+          error: 'Gemini 回傳內容無法解析為有效 JSON',
+          message: parseErr.message,
         }),
-        { status: isTimeout ? 504 : 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+        { status: 502, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
       );
     }
   },

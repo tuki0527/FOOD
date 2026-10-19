@@ -44,10 +44,11 @@
   <style>
     /* Reset & Base Polish */
     body {
-      background-color: #FAF9F6;
-      color: #2D3748;
+      background-color: var(--app-bg, #FAF9F6);
+      color: var(--app-text-main, #2D3748);
       font-feature-settings: "cv02", "cv03", "cv04", "cv11";
       -webkit-font-smoothing: antialiased;
+      transition: background-color 0.4s ease, color 0.3s ease;
     }
     .tabular-nums {
       font-variant-numeric: tabular-nums;
@@ -58,14 +59,14 @@
       height: 6px;
     }
     ::-webkit-scrollbar-track {
-      background: #F1F1EB;
+      background: var(--app-scroll-track, #F1F1EB);
     }
     ::-webkit-scrollbar-thumb {
-      background: #CFDFD5;
+      background: var(--app-scroll-thumb, #CFDFD5);
       border-radius: 3px;
     }
     ::-webkit-scrollbar-thumb:hover {
-      background: #4A6B5D;
+      background: var(--app-primary, #4A6B5D);
     }
     /* Modal Backdrop Transitions */
     .modal-enter {
@@ -76,6 +77,180 @@
       opacity: 1;
       transform: scale(1);
       transition: opacity 180ms cubic-bezier(0.16, 1, 0.3, 1), transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* ================= DYNAMIC TIME THEMES ================= */
+    :root, [data-theme="day"] {
+      --app-bg: #FAF9F6;
+      --app-header-bg: rgba(255, 255, 255, 0.95);
+      --app-card-bg: #FFFFFF;
+      --app-card-alt: #F8FAF8;
+      --app-card-border: #E5E7EB;
+      --app-text-main: #2D3748;
+      --app-text-muted: #64748B;
+      --app-primary: #4A6B5D;
+      --app-primary-hover: #3D594C;
+      --app-primary-light: #E7EFEA;
+      --app-primary-text: #FFFFFF;
+      --app-input-bg: #FFFFFF;
+      --app-input-border: #D1D5DB;
+      --app-modal-bg: #FFFFFF;
+      --app-scroll-track: #F1F1EB;
+      --app-scroll-thumb: #CFDFD5;
+      --app-badge-bg: #E7EFEA;
+      --app-badge-text: #3D594C;
+    }
+
+    [data-theme="noon"] {
+      --app-bg: #FCF9F2;
+      --app-header-bg: rgba(255, 253, 248, 0.96);
+      --app-card-bg: #FFFFFF;
+      --app-card-alt: #FFFBF0;
+      --app-card-border: #EADFC7;
+      --app-text-main: #382E2B;
+      --app-text-muted: #786558;
+      --app-primary: #D97706;
+      --app-primary-hover: #B45309;
+      --app-primary-light: #FEF3C7;
+      --app-primary-text: #FFFFFF;
+      --app-input-bg: #FFFFFF;
+      --app-input-border: #E0D3B8;
+      --app-modal-bg: #FFFFFF;
+      --app-scroll-track: #F7EFE0;
+      --app-scroll-thumb: #FCD34D;
+      --app-badge-bg: #FEF3C7;
+      --app-badge-text: #92400E;
+    }
+
+    [data-theme="afternoon"] {
+      --app-bg: #F7F4EE;
+      --app-header-bg: rgba(253, 251, 247, 0.96);
+      --app-card-bg: #FFFFFF;
+      --app-card-alt: #FAF8F2;
+      --app-card-border: #E2DAD0;
+      --app-text-main: #3A3530;
+      --app-text-muted: #73695F;
+      --app-primary: #526848;
+      --app-primary-hover: #405238;
+      --app-primary-light: #EDF2E8;
+      --app-primary-text: #FFFFFF;
+      --app-input-bg: #FFFFFF;
+      --app-input-border: #D8D0C3;
+      --app-modal-bg: #FFFFFF;
+      --app-scroll-track: #EDE7DD;
+      --app-scroll-thumb: #C8D6C0;
+      --app-badge-bg: #EDF2E8;
+      --app-badge-text: #405238;
+    }
+
+    [data-theme="dusk"] {
+      --app-bg: #F8EFE9;
+      --app-header-bg: rgba(254, 249, 246, 0.96);
+      --app-card-bg: #FFFFFF;
+      --app-card-alt: #FAF1EC;
+      --app-card-border: #EAD8CE;
+      --app-text-main: #362520;
+      --app-text-muted: #7A5B52;
+      --app-primary: #C46244;
+      --app-primary-hover: #A44C32;
+      --app-primary-light: #FDEEE7;
+      --app-primary-text: #FFFFFF;
+      --app-input-bg: #FFFFFF;
+      --app-input-border: #DEC5B6;
+      --app-modal-bg: #FFFFFF;
+      --app-scroll-track: #EFE2D9;
+      --app-scroll-thumb: #E8B9A7;
+      --app-badge-bg: #FDEEE7;
+      --app-badge-text: #9C391C;
+    }
+
+    [data-theme="night"] {
+      --app-bg: #111622;
+      --app-header-bg: rgba(19, 25, 37, 0.96);
+      --app-card-bg: #1B2232;
+      --app-card-alt: #161C2B;
+      --app-card-border: #2D374E;
+      --app-text-main: #F1F5F9;
+      --app-text-muted: #94A3B8;
+      --app-primary: #48BB78;
+      --app-primary-hover: #38A169;
+      --app-primary-light: #183325;
+      --app-primary-text: #FFFFFF;
+      --app-input-bg: #141A26;
+      --app-input-border: #334155;
+      --app-modal-bg: #1B2232;
+      --app-scroll-track: #141A26;
+      --app-scroll-thumb: #2D374E;
+      --app-badge-bg: #1A2E26;
+      --app-badge-text: #68D391;
+    }
+
+    /* Apply theme tokens to structural elements */
+    header {
+      background-color: var(--app-header-bg) !important;
+      border-color: var(--app-card-border) !important;
+    }
+    footer {
+      background-color: var(--app-header-bg) !important;
+      border-color: var(--app-card-border) !important;
+      color: var(--app-text-muted) !important;
+    }
+    .bg-white {
+      background-color: var(--app-card-bg) !important;
+    }
+    .bg-stone-50, .bg-stone-50\/80, .bg-stone-50\/90 {
+      background-color: var(--app-card-alt) !important;
+    }
+    .border-stone-200, .border-stone-100 {
+      border-color: var(--app-card-border) !important;
+    }
+    .text-stone-900, .text-stone-800 {
+      color: var(--app-text-main) !important;
+    }
+    .text-stone-700, .text-stone-600, .text-stone-500 {
+      color: var(--app-text-muted) !important;
+    }
+    .bg-sage-600 {
+      background-color: var(--app-primary) !important;
+    }
+    .hover\:bg-sage-700:hover {
+      background-color: var(--app-primary-hover) !important;
+    }
+    .active\:bg-sage-800:active {
+      filter: brightness(0.9);
+    }
+    .text-sage-700, .text-sage-800, .text-sage-900 {
+      color: var(--app-primary) !important;
+    }
+    .border-sage-600, .border-sage-700 {
+      border-color: var(--app-primary) !important;
+    }
+    .bg-sage-50, .bg-sage-50\/70 {
+      background-color: var(--app-primary-light) !important;
+    }
+    #theme-badge {
+      background-color: var(--app-badge-bg) !important;
+      color: var(--app-badge-text) !important;
+      border-color: var(--app-card-border) !important;
+    }
+    /* Inputs, selects, and textareas */
+    input[type="text"], input[type="number"], input[type="url"], select {
+      background-color: var(--app-input-bg) !important;
+      color: var(--app-text-main) !important;
+      border-color: var(--app-input-border) !important;
+    }
+    /* Modals dialog boxes */
+    #modal-recipe-detail > div, #modal-replace-dish > div, #modal-replan-confirm > div, #modal-meal-rating > div, #modal-settings > div {
+      background-color: var(--app-modal-bg) !important;
+      border-color: var(--app-card-border) !important;
+      color: var(--app-text-main) !important;
+    }
+    /* Night theme tweaks */
+    [data-theme="night"] tr.hover\:bg-stone-50\/50:hover {
+      background-color: rgba(255, 255, 255, 0.04) !important;
+    }
+    [data-theme="night"] input::placeholder {
+      color: #64748B !important;
     }
   </style>
 </head>
@@ -105,11 +280,15 @@
       </nav>
 
       <!-- Zone 3: Primary Action & Status Indicator -->
-      <div class="flex items-center gap-3 shrink-0">
+      <div class="flex items-center gap-2.5 shrink-0">
+        <div id="theme-badge" class="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border border-stone-200 whitespace-nowrap font-medium" title="根據使用者電腦時間自動切換">
+          <span id="theme-badge-icon">☀️</span>
+          <span id="theme-badge-text">白日</span>
+        </div>
         <div id="ai-mode-indicator" class="hidden sm:flex items-center text-xs text-stone-500 font-mono bg-stone-100 px-2.5 py-1 rounded-md border border-stone-200 whitespace-nowrap">
           <span id="current-engine-label">智能本地演算法</span>
         </div>
-        <button id="open-settings-btn" class="px-3.5 py-1.5 text-xs font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 border border-stone-200">
+        <button id="open-settings-btn" class="px-3.5 py-1.5 text-xs font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 border border-stone-200 cursor-pointer">
           <span>⚙️</span>
           <span>個人設定</span>
         </button>
@@ -365,14 +544,21 @@
     <section id="view-recipes" class="hidden space-y-6">
       <div class="bg-white rounded-2xl p-5 border border-stone-200 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 class="text-xl font-bold text-stone-900 tracking-tight">固定料理與食材規格庫</h2>
+          <div class="flex items-center gap-2.5">
+            <h2 class="text-xl font-bold text-stone-900 tracking-tight">料理資料庫</h2>
+            <span id="recipe-count-badge" class="text-xs px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-600 font-mono font-medium">20 道</span>
+          </div>
           <p class="text-xs text-stone-500 mt-1">
-            本系統收錄經人工核對之標準一人份料理資料庫，所有熱量、規格與價格皆可透明查核。
+            本系統收錄標準一人份料理規格庫與 AI 個人化生成料理，所有熱量、規格與價格皆可透明查核。
           </p>
         </div>
-        <!-- Search & Filter -->
-        <div class="flex items-center gap-2 w-full sm:w-auto">
-          <input type="text" id="recipe-search-input" placeholder="搜尋料理或食材..." class="w-full sm:w-60 px-3 py-1.5 text-xs rounded-lg border border-stone-200 focus:outline-none focus:border-sage-600" />
+        <!-- Search & Filter & AI Add Button -->
+        <div class="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+          <input type="text" id="recipe-search-input" placeholder="搜尋料理或食材..." class="flex-1 sm:w-48 px-3 py-2 text-xs rounded-xl border border-stone-200 focus:outline-none focus:border-sage-600" />
+          <button id="btn-ai-add-recipes" class="w-full sm:w-auto px-4 py-2 bg-sage-600 hover:bg-sage-700 active:bg-sage-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer">
+            <span id="btn-ai-add-icon">✨</span>
+            <span id="btn-ai-add-text">AI 新增 5 道料理</span>
+          </button>
         </div>
       </div>
 
@@ -742,8 +928,8 @@
           <div id="worker-url-box" class="pt-2">
             <label class="block text-[11px] font-semibold text-stone-600 mb-1">Cloudflare Worker 代理網址：</label>
             <div class="flex gap-2">
-              <input type="url" id="setting-worker-url" placeholder="https://my-meal-worker.workers.dev" class="flex-1 px-3 py-1.5 rounded-lg border border-stone-300 text-xs bg-white focus:outline-none focus:border-sage-600" />
-              <button type="button" id="btn-test-worker" class="px-3 py-1.5 bg-white border border-stone-300 hover:bg-stone-50 text-stone-700 text-xs rounded-lg font-medium whitespace-nowrap">
+              <input type="url" id="setting-worker-url" placeholder="https://food-gemini-api.guoj804.workers.dev/" class="flex-1 px-3 py-1.5 rounded-lg border border-stone-300 text-xs bg-white focus:outline-none focus:border-sage-600" />
+              <button type="button" id="btn-test-worker" class="px-3 py-1.5 bg-white border border-stone-300 hover:bg-stone-50 text-stone-700 text-xs rounded-lg font-medium whitespace-nowrap cursor-pointer">
                 測試連線
               </button>
             </div>
@@ -753,9 +939,25 @@
           </div>
         </div>
 
+        <!-- Dynamic Time Theme Testing Tool -->
+        <div class="p-3.5 bg-stone-50 rounded-xl border border-stone-200 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-stone-700">時間主題預覽測試（系統平時依電腦時間自動切換）</span>
+            <span id="theme-current-desc" class="text-[11px] font-mono text-sage-800 font-medium"></span>
+          </div>
+          <div class="flex flex-wrap items-center gap-1.5 pt-1">
+            <button type="button" class="btn-preview-theme px-2.5 py-1 text-xs rounded-lg border border-stone-200 bg-white hover:bg-stone-100 cursor-pointer transition-colors" data-theme="day">☀️ 白日 (06:00–11:59)</button>
+            <button type="button" class="btn-preview-theme px-2.5 py-1 text-xs rounded-lg border border-stone-200 bg-white hover:bg-stone-100 cursor-pointer transition-colors" data-theme="noon">🍲 中午 (12:00–12:59)</button>
+            <button type="button" class="btn-preview-theme px-2.5 py-1 text-xs rounded-lg border border-stone-200 bg-white hover:bg-stone-100 cursor-pointer transition-colors" data-theme="afternoon">☕ 下午 (13:00–15:59)</button>
+            <button type="button" class="btn-preview-theme px-2.5 py-1 text-xs rounded-lg border border-stone-200 bg-white hover:bg-stone-100 cursor-pointer transition-colors" data-theme="dusk">🌇 黃昏 (16:00–18:59)</button>
+            <button type="button" class="btn-preview-theme px-2.5 py-1 text-xs rounded-lg border border-stone-200 bg-white hover:bg-stone-100 cursor-pointer transition-colors" data-theme="night">🌙 夜晚 (19:00–05:59)</button>
+            <button type="button" class="btn-preview-theme px-2.5 py-1 text-xs rounded-lg border border-stone-300 bg-stone-100 hover:bg-stone-200 font-semibold cursor-pointer transition-colors" data-theme="auto">🔄 恢復電腦時間自動</button>
+          </div>
+        </div>
+
         <div class="flex justify-end gap-2.5 pt-3 border-t border-stone-100">
-          <button type="button" id="btn-cancel-settings" class="px-4 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100 rounded-xl transition-colors">取消</button>
-          <button type="submit" class="px-5 py-2 text-xs font-semibold bg-sage-600 hover:bg-sage-700 text-white rounded-xl shadow-xs transition-colors">儲存個人設定</button>
+          <button type="button" id="btn-cancel-settings" class="px-4 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100 rounded-xl transition-colors cursor-pointer">取消</button>
+          <button type="submit" class="px-5 py-2 text-xs font-semibold bg-sage-600 hover:bg-sage-700 text-white rounded-xl shadow-xs transition-colors cursor-pointer">儲存個人設定</button>
         </div>
       </form>
     </div>
@@ -1708,7 +1910,11 @@
 
     // --- 3. 狀態儲存與 LocalStorage 管理 (State Management) ---
     const STORAGE_KEY = 'mealplanner_vibe_state_v1';
-    const SCHEMA_VERSION = '1.2.0';
+    const AI_RECIPES_STORAGE_KEY = 'mealplanner_ai_recipes_v1';
+    const AI_INGREDIENTS_STORAGE_KEY = 'mealplanner_ai_ingredients_v1';
+    const SCHEMA_VERSION = '1.3.0';
+
+    const DEFAULT_WORKER_URL = 'https://food-gemini-api.guoj804.workers.dev/';
 
     const defaultState = {
       schemaVersion: SCHEMA_VERSION,
@@ -1723,7 +1929,7 @@
         height: 172,
         weight: 65,
         recommendationMode: 'local', // 'local' or 'ai'
-        workerUrl: ''
+        workerUrl: DEFAULT_WORKER_URL
       },
       currentWeekOffset: 0, // 0: this week, 1: next week
       weeklyMenus: {}, // Keyed by weekId: e.g. "2026-W42" -> [{ date, recipeId, status, reason, completedAt, rating, actualSpend }]
@@ -1732,6 +1938,61 @@
       mealHistory: [] // [{ date, recipeId, recipeName, kcal, cost, rating, notes, actualSpend, timestamp }]
     };
 
+    // AI 動態料理與新食材持久化儲存 (保持固定資料不被竄改)
+    let aiRecipes = loadAiRecipes();
+    let customIngredients = loadCustomIngredients();
+
+    function loadAiRecipes() {
+      try {
+        const raw = localStorage.getItem(AI_RECIPES_STORAGE_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        console.warn('Failed to load AI recipes from localStorage:', e);
+        return [];
+      }
+    }
+
+    function saveAiRecipes() {
+      try {
+        localStorage.setItem(AI_RECIPES_STORAGE_KEY, JSON.stringify(aiRecipes));
+      } catch (e) {
+        console.error('Failed to save AI recipes to localStorage:', e);
+        showToast('AI 料理儲存失敗，請檢查瀏覽器容量', 'error');
+      }
+    }
+
+    function loadCustomIngredients() {
+      try {
+        const raw = localStorage.getItem(AI_INGREDIENTS_STORAGE_KEY);
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        return (parsed && typeof parsed === 'object') ? parsed : {};
+      } catch (e) {
+        console.warn('Failed to load custom ingredients from localStorage:', e);
+        return {};
+      }
+    }
+
+    function saveCustomIngredients() {
+      try {
+        localStorage.setItem(AI_INGREDIENTS_STORAGE_KEY, JSON.stringify(customIngredients));
+      } catch (e) {
+        console.error('Failed to save custom ingredients to localStorage:', e);
+      }
+    }
+
+    // 取得所有食材（固定規格庫 + AI 新增規格）
+    function getAllIngredients() {
+      return { ...INGREDIENTS_DB, ...customIngredients };
+    }
+
+    // 取得所有料理（固定 20 道 + AI 動態新增料理）
+    function getAllRecipes() {
+      return [...RECIPES_DB, ...aiRecipes];
+    }
+
     let appState = loadState();
 
     function loadState() {
@@ -1739,11 +2000,11 @@
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) return JSON.parse(JSON.stringify(defaultState));
         const parsed = JSON.parse(raw);
-        // Schema migrations & safety checks
-        if (!parsed.schemaVersion || !parsed.preferences) {
-          return { ...defaultState, ...parsed, schemaVersion: SCHEMA_VERSION };
+        const state = { ...defaultState, ...parsed, schemaVersion: SCHEMA_VERSION };
+        if (state.preferences && !state.preferences.workerUrl) {
+          state.preferences.workerUrl = DEFAULT_WORKER_URL;
         }
-        return parsed;
+        return state;
       } catch (e) {
         console.error('Failed to load localStorage, returning safe default:', e);
         return JSON.parse(JSON.stringify(defaultState));
@@ -1764,9 +2025,10 @@
     // 計算單道料理之估計熱量 (kcal)
     function calculateRecipeNutrition(recipe) {
       if (!recipe || !recipe.ingredients) return 0;
+      const allIngs = getAllIngredients();
       let totalKcal = 0;
       for (const item of recipe.ingredients) {
-        const ing = INGREDIENTS_DB[item.ingredientId];
+        const ing = allIngs[item.ingredientId];
         if (!ing) continue;
         if (ing.kcalPerStandardUnit !== undefined) {
           totalKcal += item.amount * ing.kcalPerStandardUnit;
@@ -1780,14 +2042,16 @@
     // 計算單道料理之「食材實際使用成本」 (依比例)
     function calculateRecipeIngredientCost(recipe) {
       if (!recipe || !recipe.ingredients) return 0;
+      const allIngs = getAllIngredients();
       let cost = 0;
       for (const item of recipe.ingredients) {
-        const ing = INGREDIENTS_DB[item.ingredientId];
+        const ing = allIngs[item.ingredientId];
         if (!ing) continue;
         if (ing.isPantry) {
           cost += ing.referencePrice * item.amount;
         } else {
-          cost += (item.amount / ing.packageSize) * ing.referencePrice;
+          const pkgSize = ing.packageSize > 0 ? ing.packageSize : 100;
+          cost += (item.amount / pkgSize) * ing.referencePrice;
         }
       }
       return Math.round(cost);
@@ -1795,14 +2059,17 @@
 
     // 依據一週 7 天料理清單，計算「食材合併、超市完整包裝換算、採買成本與剩餘量」
     function calculateWeeklyGroceryPlan(dayDishes) {
+      const allRecipes = getAllRecipes();
+      const allIngs = getAllIngredients();
+
       // 1. 合併相同食材
       const aggregated = {};
 
       for (const day of dayDishes) {
-        const recipe = RECIPES_DB.find(r => r.id === day.recipeId);
+        const recipe = allRecipes.find(r => r.id === day.recipeId);
         if (!recipe) continue;
         for (const item of recipe.ingredients) {
-          const ing = INGREDIENTS_DB[item.ingredientId];
+          const ing = allIngs[item.ingredientId];
           if (!ing) continue;
           if (!aggregated[ing.id]) {
             aggregated[ing.id] = {
@@ -1826,20 +2093,21 @@
       for (const ingId in aggregated) {
         const item = aggregated[ingId];
         const ing = item.ingredient;
+        const pkgSize = ing.packageSize > 0 ? ing.packageSize : 100;
 
         // 實際使用成本
         const usageCost = ing.isPantry
           ? ing.referencePrice * item.totalAmount
-          : (item.totalAmount / ing.packageSize) * ing.referencePrice;
+          : (item.totalAmount / pkgSize) * ing.referencePrice;
         totalUsageCost += usageCost;
 
         // 若為基礎調味料，不列入超市包裝採買清單
         if (ing.isPantry) continue;
 
         // 包裝換算：購買包數 = ceil(整週需求量 ÷ 單包容量)
-        const packagesToBuy = Math.ceil(item.totalAmount / ing.packageSize);
+        const packagesToBuy = Math.ceil(item.totalAmount / pkgSize);
         const packagedCost = packagesToBuy * ing.referencePrice;
-        const surplusAmount = (packagesToBuy * ing.packageSize) - item.totalAmount;
+        const surplusAmount = (packagesToBuy * pkgSize) - item.totalAmount;
 
         totalGroceryCost += packagedCost;
 
@@ -1907,8 +2175,10 @@
 
     // 檢查料理是否違反過敏與忌口限制
     function isRecipeAllowed(recipe, preferences) {
+      if (!recipe) return false;
+      const allIngs = getAllIngredients();
       // 1. 嚴格檢查過敏原
-      if (preferences.allergens && preferences.allergens.length > 0) {
+      if (preferences?.allergens && preferences.allergens.length > 0) {
         for (const allergen of preferences.allergens) {
           if (recipe.allergens && recipe.allergens.includes(allergen)) {
             return false;
@@ -1916,12 +2186,13 @@
         }
       }
       // 2. 檢查討厭食材
-      if (preferences.dislikedIngredients && preferences.dislikedIngredients.length > 0) {
+      if (preferences?.dislikedIngredients && preferences.dislikedIngredients.length > 0) {
         for (const disliked of preferences.dislikedIngredients) {
           const trimmed = disliked.trim().toLowerCase();
           if (!trimmed) continue;
-          for (const item of recipe.ingredients) {
-            const ing = INGREDIENTS_DB[item.ingredientId];
+          if (recipe.name.toLowerCase().includes(trimmed)) return false;
+          for (const item of (recipe.ingredients || [])) {
+            const ing = allIngs[item.ingredientId];
             if (ing && ing.name.toLowerCase().includes(trimmed)) {
               return false;
             }
@@ -1934,9 +2205,11 @@
     // 智能本地推薦演算法
     function generateLocalWeeklyPlan(preferences, existingDays = []) {
       const dates = getWeekDates(appState.currentWeekOffset);
+      const allRecipes = getAllRecipes();
+      const allIngs = getAllIngredients();
       
       // 1. 過濾出所有允許的料理
-      const allowedRecipes = RECIPES_DB.filter(r => isRecipeAllowed(r, preferences));
+      const allowedRecipes = allRecipes.filter(r => isRecipeAllowed(r, preferences));
       
       if (allowedRecipes.length < 3) {
         throw new Error('您設定的過敏或忌口條件過於嚴格，目前可用料理庫不足，請適度放寬忌口限制。');
@@ -1968,10 +2241,10 @@
           let score = 50;
 
           // 喜歡食材加分
-          if (preferences.likedIngredients) {
+          if (preferences?.likedIngredients) {
             for (const liked of preferences.likedIngredients) {
               const trimmed = liked.trim();
-              if (trimmed && recipe.ingredients.some(it => INGREDIENTS_DB[it.ingredientId]?.name.includes(trimmed))) {
+              if (trimmed && recipe.ingredients.some(it => allIngs[it.ingredientId]?.name.includes(trimmed))) {
                 score += 15;
               }
             }
@@ -2002,7 +2275,7 @@
           // 蛋白質輪替加權 (若前一天是 chicken，避免隔天又是 chicken)
           const lastDay = finalDays[finalDays.length - 1];
           if (lastDay) {
-            const lastRecipe = RECIPES_DB.find(r => r.id === lastDay.recipeId);
+            const lastRecipe = allRecipes.find(r => r.id === lastDay.recipeId);
             if (lastRecipe && lastRecipe.primaryProtein === recipe.primaryProtein) {
               score -= 25;
             }
@@ -2029,7 +2302,7 @@
           date: dateInfo.dateStr,
           recipeId: chosen.id,
           status: 'planned',
-          reason: `本地推薦：${reason}`
+          reason: chosen.isAiGenerated ? `AI 推薦：${chosen.name} (${reason})` : `本地推薦：${reason}`
         });
       }
 
@@ -2088,7 +2361,8 @@
     // 呼叫 Cloudflare Worker 取得 Gemini AI 推薦
     async function fetchGeminiMenuFromWorker(preferences, existingMenu) {
       const dates = getWeekDates(appState.currentWeekOffset).map(d => d.dateStr);
-      const availableRecipes = RECIPES_DB
+      const allRecipes = getAllRecipes();
+      const availableRecipes = allRecipes
         .filter(r => isRecipeAllowed(r, preferences))
         .map(r => ({ id: r.id, name: r.name, category: r.category, protein: r.primaryProtein }));
 
@@ -2117,13 +2391,13 @@
       // 由 JavaScript 嚴格驗證 AI 回傳的 recipeId 與過敏限制
       const verifiedDays = [];
       for (const d of data.days) {
-        const recipe = RECIPES_DB.find(r => r.id === d.recipeId);
+        const recipe = allRecipes.find(r => r.id === d.recipeId);
         if (!recipe || !isRecipeAllowed(recipe, preferences)) {
           // AI 挑了無效或禁用的料理，退回本地安全料理
-          const fallback = RECIPES_DB.find(r => isRecipeAllowed(r, preferences));
+          const fallback = allRecipes.find(r => isRecipeAllowed(r, preferences));
           verifiedDays.push({
             date: d.date,
-            recipeId: fallback.id,
+            recipeId: fallback ? fallback.id : allRecipes[0].id,
             status: 'planned',
             reason: 'AI 修正推薦：符合安全忌口'
           });
@@ -2156,6 +2430,8 @@
       const weekKey = getWeekKey(appState.currentWeekOffset);
       const currentMenu = appState.weeklyMenus[weekKey] || [];
       const dates = getWeekDates(appState.currentWeekOffset);
+      const allRecipes = getAllRecipes();
+      const allIngs = getAllIngredients();
 
       // 更新日期範圍標題
       document.getElementById('label-date-range').innerText = 
@@ -2183,7 +2459,7 @@
       // 渲染 7 日晚餐卡片
       grid.innerHTML = currentMenu.map((dayItem, index) => {
         const dateInfo = dates.find(d => d.dateStr === dayItem.date) || dates[index];
-        const recipe = RECIPES_DB.find(r => r.id === dayItem.recipeId) || RECIPES_DB[0];
+        const recipe = allRecipes.find(r => r.id === dayItem.recipeId) || allRecipes[0];
         const kcal = calculateRecipeNutrition(recipe);
         const cost = calculateRecipeIngredientCost(recipe);
         const isCompleted = dayItem.status === 'completed';
@@ -2196,9 +2472,9 @@
           : '<span class="text-[11px] font-medium text-stone-600 bg-stone-50 px-2 py-0.5 rounded">已規劃</span>';
 
         // 主要食材清單文字
-        const mainIngNames = recipe.ingredients
+        const mainIngNames = (recipe.ingredients || [])
           .slice(0, 3)
-          .map(it => INGREDIENTS_DB[it.ingredientId]?.name)
+          .map(it => allIngs[it.ingredientId]?.name)
           .filter(Boolean)
           .join(' · ');
 
@@ -2211,7 +2487,10 @@
                 <span class="font-bold text-stone-900 text-sm">${dateInfo.displayDay}</span>
                 <span class="text-xs text-stone-400 ml-1.5 font-mono">${dateInfo.dateStr}</span>
               </div>
-              <div>${statusBadge}</div>
+              <div class="flex items-center gap-1.5">
+                ${recipe.isAiGenerated ? '<span class="text-[10px] font-semibold text-sage-800 bg-sage-100 px-1.5 py-0.5 rounded border border-sage-200">✨ AI 料理</span>' : ''}
+                ${statusBadge}
+              </div>
             </div>
 
             <!-- Recipe Image Slot (Authentic Culinary Photo with Clean SVG Fallback) -->
@@ -2473,10 +2752,11 @@
         `;
       } else {
         // 計算常吃肉類
+        const allRecipes = getAllRecipes();
         const proteinCount = {};
         const recipeFrequency = {};
         history.forEach(h => {
-          const r = RECIPES_DB.find(x => x.id === h.recipeId);
+          const r = allRecipes.find(x => x.id === h.recipeId);
           if (r) {
             proteinCount[r.primaryProtein] = (proteinCount[r.primaryProtein] || 0) + 1;
           }
@@ -2538,13 +2818,23 @@
     // 渲染料理庫展示 (Tab 4)
     function renderRecipesRepo(query = '') {
       const container = document.getElementById('recipe-repo-grid');
-      const filtered = RECIPES_DB.filter(r => {
+      const allRecipes = getAllRecipes();
+      const allIngs = getAllIngredients();
+
+      // 更新料理總數標籤
+      const badge = document.getElementById('recipe-count-badge');
+      if (badge) {
+        const aiCount = aiRecipes.length;
+        badge.innerText = aiCount > 0 ? `${allRecipes.length} 道 (含 ${aiCount} 道 AI)` : `${allRecipes.length} 道`;
+      }
+
+      const filtered = allRecipes.filter(r => {
         if (!query) return true;
         const q = query.toLowerCase();
         return r.name.toLowerCase().includes(q) || 
                r.category.toLowerCase().includes(q) ||
-               r.tags.some(t => t.toLowerCase().includes(q)) ||
-               r.ingredients.some(it => INGREDIENTS_DB[it.ingredientId]?.name.toLowerCase().includes(q));
+               (r.tags && r.tags.some(t => t.toLowerCase().includes(q))) ||
+               (r.ingredients && r.ingredients.some(it => allIngs[it.ingredientId]?.name.toLowerCase().includes(q)));
       });
 
       if (filtered.length === 0) {
@@ -2560,11 +2850,16 @@
             <div>
               <div class="h-36 bg-stone-100 overflow-hidden relative cursor-pointer btn-repo-view" data-id="${r.id}">
                 <img src="${getAssetUrl(r.image)}" alt="${r.name}" loading="lazy" class="w-full h-full object-cover" onerror="window.handleImageError(this, '${r.name}', '${r.image}')" />
-                <span class="absolute bottom-2 left-2 text-[10px] bg-stone-900/80 text-white px-2 py-0.5 rounded">${r.category}</span>
+                <div class="absolute bottom-2 left-2 flex items-center gap-1.5">
+                  <span class="text-[10px] bg-stone-900/80 backdrop-blur-xs text-white px-2 py-0.5 rounded font-medium">${r.category}</span>
+                  ${r.isAiGenerated ? '<span class="text-[10px] bg-sage-600 text-white px-1.5 py-0.5 rounded font-medium shadow-xs">✨ AI 生成</span>' : ''}
+                </div>
               </div>
               <div class="p-3.5">
-                <h4 class="font-bold text-stone-900 text-sm hover:text-sage-700 cursor-pointer btn-repo-view" data-id="${r.id}">${r.name}</h4>
-                <div class="flex items-center gap-2 text-[11px] text-stone-500 mt-1">
+                <div class="flex items-start justify-between gap-1">
+                  <h4 class="font-bold text-stone-900 text-sm hover:text-sage-700 cursor-pointer btn-repo-view flex-1" data-id="${r.id}">${r.name}</h4>
+                </div>
+                <div class="flex items-center gap-2 text-[11px] text-stone-500 mt-1 font-mono">
                   <span>⏱️ ${r.cookTimeMinutes}分</span>
                   <span>·</span>
                   <span>約 ${kcal} kcal</span>
@@ -2574,8 +2869,8 @@
               </div>
             </div>
             <div class="px-3.5 pb-3 pt-1 border-t border-stone-100 flex justify-between items-center text-xs">
-              <span class="text-[11px] text-stone-400">${r.tags.join(' · ')}</span>
-              <button class="text-sage-700 hover:underline font-semibold btn-repo-view" data-id="${r.id}">詳情</button>
+              <span class="text-[11px] text-stone-400 truncate max-w-[170px]">${(r.tags || []).join(' · ')}</span>
+              <button class="text-sage-700 hover:underline font-semibold btn-repo-view shrink-0" data-id="${r.id}">詳情</button>
             </div>
           </div>
         `;
@@ -2592,10 +2887,15 @@
 
     // 開啟料理詳情 Modal
     function openRecipeDetailModal(recipeId) {
-      const recipe = RECIPES_DB.find(r => r.id === recipeId);
+      const allRecipes = getAllRecipes();
+      const allIngs = getAllIngredients();
+      const recipe = allRecipes.find(r => r.id === recipeId);
       if (!recipe) return;
 
-      document.getElementById('modal-detail-category').innerText = recipe.category;
+      document.getElementById('modal-detail-category').innerHTML = `
+        <span>${recipe.category}</span>
+        ${recipe.isAiGenerated ? '<span class="ml-1 text-xs font-semibold text-sage-800 bg-sage-100 px-2 py-0.5 rounded">✨ AI 生成</span>' : ''}
+      `;
       document.getElementById('modal-detail-title').innerText = recipe.name;
       document.getElementById('modal-detail-cooktime').innerText = `⏱️ 約 ${recipe.cookTimeMinutes} 分鐘`;
       document.getElementById('modal-detail-calories').innerText = `約 ${calculateRecipeNutrition(recipe)} kcal`;
@@ -2618,8 +2918,8 @@
 
       // 食材列表
       const tbody = document.getElementById('modal-detail-ingredients-tbody');
-      tbody.innerHTML = recipe.ingredients.map(item => {
-        const ing = INGREDIENTS_DB[item.ingredientId];
+      tbody.innerHTML = (recipe.ingredients || []).map(item => {
+        const ing = allIngs[item.ingredientId];
         if (!ing) return '';
         let itemKcal = 0;
         if (ing.kcalPerStandardUnit !== undefined) itemKcal = Math.round(item.amount * ing.kcalPerStandardUnit);
@@ -2627,14 +2927,14 @@
 
         let itemCost = 0;
         if (ing.isPantry) itemCost = Math.round(ing.referencePrice * item.amount * 10) / 10;
-        else itemCost = Math.round((item.amount / ing.packageSize) * ing.referencePrice);
+        else itemCost = Math.round((item.amount / (ing.packageSize || 100)) * ing.referencePrice);
 
         return `
           <tr>
             <td class="p-2.5 font-medium text-stone-800">
               ${ing.name} ${ing.isPantry ? '<span class="text-[10px] text-amber-600">(常備)</span>' : ''}
             </td>
-            <td class="p-2.5 text-right tabular-nums text-stone-600">${item.amount} ${item.unit}</td>
+            <td class="p-2.5 text-right tabular-nums text-stone-600">${item.amount} ${item.unit || ing.standardUnit}</td>
             <td class="p-2.5 text-right tabular-nums text-stone-600">${itemKcal} kcal</td>
             <td class="p-2.5 text-right tabular-nums font-semibold text-stone-900">NT$ ${itemCost}</td>
           </tr>
@@ -2643,7 +2943,7 @@
 
       // 步驟
       const stepsList = document.getElementById('modal-detail-steps');
-      stepsList.innerHTML = recipe.steps.map(step => `<li>${step}</li>`).join('');
+      stepsList.innerHTML = (recipe.steps || []).map(step => `<li>${step}</li>`).join('');
 
       document.getElementById('modal-recipe-detail').classList.remove('hidden');
     }
@@ -2657,7 +2957,8 @@
       selectedReplacementId = null;
       const weekKey = getWeekKey(appState.currentWeekOffset);
       const currentMenu = appState.weeklyMenus[weekKey] || [];
-      const currentRecipe = RECIPES_DB.find(r => r.id === currentRecipeId);
+      const allRecipes = getAllRecipes();
+      const currentRecipe = allRecipes.find(r => r.id === currentRecipeId);
 
       document.getElementById('replace-modal-subtitle').innerText = `為 ${dateStr} 挑選替代料理`;
       document.getElementById('replace-modal-current-name').innerText = currentRecipe ? currentRecipe.name : '';
@@ -2665,7 +2966,7 @@
         currentRecipe ? `使用成本約 NT$ ${calculateRecipeIngredientCost(currentRecipe)}` : '';
 
       // 計算替換候選 (排除當前料理、過敏忌口，並模擬整週採買變動)
-      const allowed = RECIPES_DB.filter(r => r.id !== currentRecipeId && isRecipeAllowed(r, appState.preferences));
+      const allowed = allRecipes.filter(r => r.id !== currentRecipeId && isRecipeAllowed(r, appState.preferences));
       
       // 隨機或挑選前 3 道代表性料理
       const candidates = allowed.slice(0, 3);
@@ -2695,7 +2996,10 @@
                 <img src="${getAssetUrl(cand.image)}" alt="${cand.name}" class="w-full h-full object-cover" onerror="window.handleImageError(this, '${cand.name}', '${cand.image}')" />
               </div>
               <div>
-                <div class="font-bold text-stone-900 text-sm">${cand.name}</div>
+                <div class="font-bold text-stone-900 text-sm flex items-center gap-1.5">
+                  <span>${cand.name}</span>
+                  ${cand.isAiGenerated ? '<span class="text-[10px] text-sage-800 bg-sage-100 px-1 py-0.2 rounded font-medium">✨ AI</span>' : ''}
+                </div>
                 <div class="text-[11px] text-stone-500 mt-0.5">
                   約 ${calculateRecipeNutrition(cand)} kcal · ${cand.category}
                 </div>
@@ -2755,8 +3059,9 @@
       if (!activeReplaceDate || !selectedReplacementId) return;
       const weekKey = getWeekKey(appState.currentWeekOffset);
       const currentMenu = appState.weeklyMenus[weekKey] || [];
+      const allRecipes = getAllRecipes();
+      const newRecipe = allRecipes.find(r => r.id === selectedReplacementId);
 
-      const newRecipe = RECIPES_DB.find(r => r.id === selectedReplacementId);
       const updatedMenu = currentMenu.map(item => {
         if (item.date === activeReplaceDate) {
           return {
@@ -2785,13 +3090,14 @@
       const weekKey = draft.weekKey;
       const oldMenu = appState.weeklyMenus[weekKey] || [];
       const oldPlan = calculateWeeklyGroceryPlan(oldMenu);
+      const allRecipes = getAllRecipes();
 
       document.getElementById('replan-old-cost').innerText = `NT$ ${oldPlan.totalGroceryCost.toLocaleString()}`;
       document.getElementById('replan-new-cost').innerText = `NT$ ${draft.groceryTotal.toLocaleString()}`;
 
       const tbody = document.getElementById('replan-draft-table-body');
       tbody.innerHTML = draft.days.map(d => {
-        const recipe = RECIPES_DB.find(r => r.id === d.recipeId);
+        const recipe = allRecipes.find(r => r.id === d.recipeId);
         const kcal = calculateRecipeNutrition(recipe);
         const isRetained = d.status === 'completed';
         return `
@@ -2799,7 +3105,10 @@
             <td class="p-2.5 font-medium text-stone-800">
               ${d.date} ${isRetained ? '<span class="text-[10px] text-emerald-700 font-bold">(已吃保留)</span>' : ''}
             </td>
-            <td class="p-2.5 font-bold text-stone-900">${recipe ? recipe.name : ''}</td>
+            <td class="p-2.5 font-bold text-stone-900 flex items-center gap-1.5">
+              <span>${recipe ? recipe.name : ''}</span>
+              ${recipe?.isAiGenerated ? '<span class="text-[10px] bg-sage-100 text-sage-800 px-1 py-0.2 rounded font-medium">✨ AI</span>' : ''}
+            </td>
             <td class="p-2.5 text-right tabular-nums text-stone-600">約 ${kcal} kcal</td>
             <td class="p-2.5 text-stone-500 text-[11px]">${d.reason}</td>
           </tr>
@@ -2831,7 +3140,8 @@
       const weekKey = getWeekKey(appState.currentWeekOffset);
       const currentMenu = appState.weeklyMenus[weekKey] || [];
       const meal = currentMenu.find(m => m.date === dateStr);
-      const recipe = RECIPES_DB.find(r => r.id === meal?.recipeId);
+      const allRecipes = getAllRecipes();
+      const recipe = allRecipes.find(r => r.id === meal?.recipeId);
 
       document.getElementById('rating-modal-meal-title').innerText = 
         `${dateStr} · ${recipe ? recipe.name : '晚餐料理'}`;
@@ -2866,7 +3176,8 @@
       const meal = currentMenu.find(m => m.date === ratingTargetDate);
       if (!meal) return;
 
-      const recipe = RECIPES_DB.find(r => r.id === meal.recipeId);
+      const allRecipes = getAllRecipes();
+      const recipe = allRecipes.find(r => r.id === meal.recipeId);
       const notes = document.getElementById('rating-modal-notes').value.trim();
       const spend = parseFloat(document.getElementById('rating-modal-spend').value) || null;
 
@@ -2913,6 +3224,343 @@
       renderLogsView();
       showToast('已取消完成狀態。', 'info');
     }
+
+    // --- 7.5 AI 動態生成 5 道料理核心邏輯 (Feature 1) ---
+    async function handleAiAddRecipes() {
+      const btn = document.getElementById('btn-ai-add-recipes');
+      const icon = document.getElementById('btn-ai-add-icon');
+      const text = document.getElementById('btn-ai-add-text');
+
+      if (!btn || btn.disabled) return;
+
+      btn.disabled = true;
+      btn.classList.add('opacity-70', 'cursor-not-allowed');
+      if (icon) icon.innerHTML = `<span class="inline-block animate-spin">⏳</span>`;
+      if (text) text.innerText = '正在生成 5 道 AI 料理...';
+
+      try {
+        const workerUrl = appState.preferences?.workerUrl || DEFAULT_WORKER_URL;
+        if (!workerUrl) {
+          throw new Error('未設定 Cloudflare Worker 代理網址，請先至個人設定填寫。');
+        }
+
+        // 1. 蒐集使用者偏好、過敏與歷史紀錄
+        const preferences = appState.preferences || {};
+        const allRecipes = getAllRecipes();
+        const allIngs = getAllIngredients();
+        const existingRecipeNames = allRecipes.map(r => r.name);
+
+        // 分析用餐紀錄
+        const history = appState.mealHistory || [];
+        const frequentDishes = [];
+        const highRatedDishes = [];
+        const proteinCounts = {};
+
+        history.forEach(h => {
+          if (h.rating >= 4 && !highRatedDishes.includes(h.recipeName)) {
+            highRatedDishes.push(h.recipeName);
+          }
+          const r = allRecipes.find(x => x.id === h.recipeId);
+          if (r && r.primaryProtein) {
+            proteinCounts[r.primaryProtein] = (proteinCounts[r.primaryProtein] || 0) + 1;
+          }
+        });
+
+        const mealHistorySummary = {
+          totalMeals: history.length,
+          frequentDishes: highRatedDishes.slice(0, 5),
+          highRatedDishes: highRatedDishes.slice(0, 5),
+          proteinCounts
+        };
+
+        const availableIngredients = Object.values(allIngs).map(ing => ({
+          id: ing.id,
+          name: ing.name,
+          category: ing.category,
+          unit: ing.standardUnit,
+          isPantry: !!ing.isPantry
+        }));
+
+        // 2. 發送請求至 Cloudflare Worker
+        const payload = {
+          action: 'generate_recipes',
+          preferences: {
+            dietGoal: preferences.dietGoal || '均衡飲食',
+            likedIngredients: preferences.likedIngredients || [],
+            dislikedIngredients: preferences.dislikedIngredients || [],
+            allergens: preferences.allergens || [],
+            cuisineStyle: preferences.cuisineStyle || '綜合家常',
+            budget: preferences.budget || 1000
+          },
+          mealHistorySummary,
+          existingRecipeNames,
+          availableIngredients: availableIngredients.slice(0, 40)
+        };
+
+        let data = null;
+        try {
+          const resp = await fetch(workerUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          if (!resp.ok) {
+            const errBody = await resp.text();
+            let parsedErr = {};
+            try { parsedErr = JSON.parse(errBody); } catch(e) {}
+            const rawMsg = parsedErr.error || parsedErr.message || `Worker 回應錯誤 HTTP ${resp.status}`;
+            if (rawMsg.includes('Invalid action') || rawMsg.includes('generate_week or replace_day')) {
+              throw new Error('Cloudflare Worker 尚未更新：目前線上部署版本僅支援舊版 action。請前往 Cloudflare 後台將本專案的最新 worker.js 複製並貼至 Worker 進行部署！');
+            }
+            throw new Error(rawMsg);
+          }
+
+          data = await resp.json();
+        } catch (fetchErr) {
+          throw new Error(`Cloudflare Worker 連線失敗: ${fetchErr.message}。請確認已部署最新支援 generate_recipes 的 worker.js。`);
+        }
+
+        if (!data || !Array.isArray(data.recipes) || data.recipes.length === 0) {
+          throw new Error('AI 未回傳合格的料理資料結構');
+        }
+
+        // 3. 嚴格重複檢查、過敏過濾與食材解析
+        const validatedRecipes = [];
+        const seenNamesThisBatch = new Set();
+        const userAllergens = (preferences.allergens || []).map(a => a.toLowerCase());
+        const userDisliked = (preferences.dislikedIngredients || []).map(d => d.trim().toLowerCase()).filter(Boolean);
+
+        for (let idx = 0; idx < data.recipes.length; idx++) {
+          const item = data.recipes[idx];
+          if (!item.name) continue;
+          const cleanName = item.name.trim();
+
+          // 檢查本批次重複
+          if (seenNamesThisBatch.has(cleanName)) continue;
+
+          // 檢查既有料理資料庫重複
+          if (existingRecipeNames.includes(cleanName)) continue;
+
+          // 檢查過敏原：若料理的 allergens 包含使用者過敏原，嚴格排除！
+          let hasAllergen = false;
+          if (item.allergens && Array.isArray(item.allergens)) {
+            for (const a of item.allergens) {
+              if (userAllergens.some(ua => a.toLowerCase().includes(ua) || ua.includes(a.toLowerCase()))) {
+                hasAllergen = true;
+                break;
+              }
+            }
+          }
+          if (hasAllergen) continue;
+
+          // 檢查食材對應與建置
+          const resolvedIngredients = [];
+          const rawIngredients = Array.isArray(item.ingredients) ? item.ingredients : [];
+
+          for (const ingItem of rawIngredients) {
+            const ingName = (ingItem.name || '').trim();
+            if (!ingName) continue;
+
+            // 檢查忌口食材
+            if (userDisliked.some(d => ingName.toLowerCase().includes(d))) {
+              hasAllergen = true;
+              break;
+            }
+
+            // 尋找對應食材
+            let matchedId = ingItem.ingredientId;
+            if (!matchedId || !allIngs[matchedId]) {
+              const foundKey = Object.keys(allIngs).find(k => 
+                allIngs[k].name === ingName || 
+                allIngs[k].name.includes(ingName) || 
+                ingName.includes(allIngs[k].name)
+              );
+              if (foundKey) {
+                matchedId = foundKey;
+              }
+            }
+
+            // 若無法對應，建立客製新食材
+            if (!matchedId || !allIngs[matchedId]) {
+              const newIngId = `ing_ai_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+              const isPantry = !!ingItem.isPantry || ['鹽', '油', '醬油', '糖', '黑胡椒', '醋', '蒜', '薑'].some(p => ingName.includes(p));
+              const newIng = {
+                id: newIngId,
+                name: ingName,
+                category: inferIngredientCategory(ingName),
+                standardUnit: ingItem.unit || 'g',
+                packageSize: isPantry ? 10 : 250,
+                packageUnit: isPantry ? '份' : '包',
+                referencePrice: ingItem.estimatedCost ? Math.round(ingItem.estimatedCost) : 45,
+                priceSource: 'AI 估計參考規格',
+                verifiedDate: new Date().toISOString().slice(0, 10),
+                kcalPer100g: ingItem.estimatedKcal ? Math.round(ingItem.estimatedKcal) : 45,
+                isPantry
+              };
+              customIngredients[newIngId] = newIng;
+              matchedId = newIngId;
+            }
+
+            resolvedIngredients.push({
+              ingredientId: matchedId,
+              amount: parseFloat(ingItem.amount) || (ingItem.unit === '顆' ? 1 : 100),
+              unit: ingItem.unit || allIngs[matchedId]?.standardUnit || 'g'
+            });
+          }
+
+          if (hasAllergen || resolvedIngredients.length === 0) continue;
+
+          // 決定安全示意圖片
+          const protein = (item.primaryProtein || 'other').toLowerCase();
+          let dishImage = 'assets/images/meal_veggie_tofu_pot_1792268552747.jpg';
+          if (protein.includes('chicken')) dishImage = 'assets/images/meal_teriyaki_chicken_1792268550463.jpg';
+          else if (protein.includes('pork')) dishImage = 'assets/images/meal_pork_stirfry_1792268551371.jpg';
+          else if (protein.includes('seafood') || protein.includes('fish') || protein.includes('salmon')) dishImage = 'assets/images/meal_salmon_set_1792268551441.jpg';
+          else if (protein.includes('egg')) dishImage = 'assets/images/meal_tomato_egg_1792268551212.jpg';
+
+          const newRecipe = {
+            id: `rec_ai_${Date.now()}_${idx}`,
+            name: cleanName,
+            category: item.category || '家常料理',
+            description: item.description || '精心調配一人份均衡晚餐',
+            image: dishImage,
+            cookTimeMinutes: parseInt(item.cookTimeMinutes, 10) || 20,
+            tags: Array.isArray(item.tags) ? (item.tags.includes('AI 生成') ? item.tags : ['AI 生成', ...item.tags]) : ['AI 生成', '多樣家常'],
+            allergens: Array.isArray(item.allergens) ? item.allergens : [],
+            primaryProtein: protein.includes('chicken') ? 'chicken' : protein.includes('pork') ? 'pork' : protein.includes('seafood') ? 'seafood' : protein.includes('egg') ? 'egg' : protein.includes('tofu') ? 'tofu' : 'other',
+            isAiGenerated: true,
+            createdAt: Date.now(),
+            ingredients: resolvedIngredients,
+            steps: Array.isArray(item.steps) && item.steps.length > 0 ? item.steps : [
+              '備妥所有一人份食材並清洗切配完畢。',
+              '熱平底鍋，依序下食材炒至熟透。',
+              '加入調味收汁拌炒均勻，香氣四溢。',
+              '起鍋盛盤配熱白飯即可享受美味晚餐。'
+            ]
+          };
+
+          seenNamesThisBatch.add(cleanName);
+          validatedRecipes.push(newRecipe);
+          if (validatedRecipes.length >= 5) break;
+        }
+
+        if (validatedRecipes.length === 0) {
+          throw new Error('AI 回傳的料理均與既有菜色重複或違反過敏忌口設定，請稍後重試。');
+        }
+
+        // 4. 保存至持久化 localStorage
+        aiRecipes.push(...validatedRecipes);
+        saveAiRecipes();
+        saveCustomIngredients();
+
+        // 5. 即時更新畫面 (不需重新整理)
+        renderRecipesRepo();
+
+        // 6. 成功提示
+        if (validatedRecipes.length === 5) {
+          showToast('✨ 成功新增 5 道 AI 料理！已加入料理資料庫。', 'success');
+        } else {
+          showToast(`✨ 成功新增 ${validatedRecipes.length} 道 AI 料理（已自動過濾重複/忌口料理）`, 'info');
+        }
+      } catch (err) {
+        console.error('AI Add recipes error:', err);
+        showToast(err.message || 'AI 料理生成失敗，請稍後再試', 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.classList.remove('opacity-70', 'cursor-not-allowed');
+        }
+        if (icon) icon.innerText = '✨';
+        if (text) text.innerText = 'AI 新增 5 道料理';
+      }
+    }
+
+    function inferIngredientCategory(name) {
+      if (['雞', '豬', '牛', '魚', '蝦', '肉', '培根', '鮭魚', '蛤蜊'].some(k => name.includes(k))) return '肉類海鮮';
+      if (['蛋', '豆腐', '豆皮', '豆漿', '毛豆', '豆干'].some(k => name.includes(k))) return '蛋豆製品';
+      if (['菜', '菇', '筍', '瓜', '番茄', '蔥', '蒜', '洋蔥', '椒', '蘿蔔', '花椰菜'].some(k => name.includes(k))) return '蔬菜蕈菇';
+      if (['米', '麵', '冬粉', '飯', '義大利麵', '燕麥'].some(k => name.includes(k))) return '主食米麵';
+      return '基礎調味';
+    }
+
+    // --- 7.6 全域動態時間主題系統 (Feature 2) ---
+    // 白日 (06:00–11:59), 中午 (12:00–12:59), 下午 (13:00–15:59), 黃昏 (16:00–18:59), 夜晚 (19:00–05:59)
+    let currentActiveTheme = 'day';
+    let manualPreviewTheme = null; // null for auto, or theme key for preview
+
+    function getThemeByHour(hour) {
+      const h = typeof hour === 'number' ? hour : new Date().getHours();
+      if (h >= 6 && h < 12) return 'day';
+      if (h === 12) return 'noon';
+      if (h >= 13 && h < 16) return 'afternoon';
+      if (h >= 16 && h < 19) return 'dusk';
+      return 'night';
+    }
+
+    function getThemeByTime(date = new Date()) {
+      const totalMin = date.getHours() * 60 + date.getMinutes();
+      if (totalMin >= 360 && totalMin < 720) return 'day';       // 06:00 - 11:59
+      if (totalMin >= 720 && totalMin < 780) return 'noon';      // 12:00 - 12:59
+      if (totalMin >= 780 && totalMin < 960) return 'afternoon'; // 13:00 - 15:59
+      if (totalMin >= 960 && totalMin < 1140) return 'dusk';     // 16:00 - 18:59
+      return 'night';                                            // 19:00 - 05:59
+    }
+
+    function getThemeInfo(themeKey) {
+      const themes = {
+        day: { name: '白日', icon: '☀️', range: '06:00–11:59', desc: '清新明亮' },
+        noon: { name: '中午', icon: '🍲', range: '12:00–12:59', desc: '活力溫暖' },
+        afternoon: { name: '下午', icon: '☕', range: '13:00–15:59', desc: '悠閒舒適' },
+        dusk: { name: '黃昏', icon: '🌇', range: '16:00–18:59', desc: '夕陽療癒' },
+        night: { name: '夜晚', icon: '🌙', range: '19:00–05:59', desc: '安靜沉穩' }
+      };
+      return themes[themeKey] || themes.day;
+    }
+
+    function applyTheme(themeKey) {
+      currentActiveTheme = themeKey;
+      document.documentElement.setAttribute('data-theme', themeKey);
+      
+      const info = getThemeInfo(themeKey);
+      const badgeIcon = document.getElementById('theme-badge-icon');
+      const badgeText = document.getElementById('theme-badge-text');
+      const previewDesc = document.getElementById('theme-current-desc');
+      
+      if (badgeIcon) badgeIcon.innerText = info.icon;
+      if (badgeText) badgeText.innerText = `${info.name}`;
+      if (previewDesc) {
+        previewDesc.innerText = manualPreviewTheme 
+          ? `手動預覽: ${info.icon} ${info.name} (${info.range})` 
+          : `自動套用中: ${info.icon} ${info.name} (${info.range})`;
+      }
+    }
+
+    function checkAndUpdateTheme() {
+      if (manualPreviewTheme) {
+        applyTheme(manualPreviewTheme);
+        return;
+      }
+      const targetTheme = getThemeByTime(new Date());
+      if (targetTheme !== currentActiveTheme) {
+        applyTheme(targetTheme);
+      }
+    }
+
+    // 匯出純函式方便測試與全域驗證
+    window.getThemeByHour = getThemeByHour;
+    window.getThemeByTime = getThemeByTime;
+    window.setThemeForTesting = function(themeKey) {
+      if (['day', 'noon', 'afternoon', 'dusk', 'night'].includes(themeKey)) {
+        manualPreviewTheme = themeKey;
+        applyTheme(themeKey);
+        showToast(`已切換至「${getThemeInfo(themeKey).name}」主題預覽`, 'info');
+      } else {
+        manualPreviewTheme = null;
+        checkAndUpdateTheme();
+        showToast('已恢復依電腦時間自動切換主題', 'info');
+      }
+    };
 
     // 個人設定對話框
     function openSettingsModal() {
@@ -3022,7 +3670,7 @@
         showToast('請先填入 Cloudflare Worker 網址', 'error');
         return;
       }
-      showLoading(true, '正在測試 Worker 連線...', '發送 Ping 檢查代理狀態');
+      showLoading(true, '正在測試 Worker 連線...', '發送 Ping 檢查代理狀態與 API 版本');
       try {
         const resp = await fetch(url, {
           method: 'POST',
@@ -3030,10 +3678,15 @@
           body: JSON.stringify({ action: 'ping' })
         });
         showLoading(false);
-        if (resp.status === 400 || resp.ok) {
-          showToast('✓ Cloudflare Worker 連線成功！', 'success');
+        const data = await resp.json().catch(() => ({}));
+        if (data.supportedActions && data.supportedActions.includes('generate_recipes')) {
+          showToast('✓ Cloudflare Worker 連線成功！已支援 AI 新增料理 (generate_recipes)', 'success');
+        } else if (data.error && (data.error.includes('generate_week or replace_day') || data.error.includes('Invalid action'))) {
+          showToast('⚠️ 連線成功，但 Worker 尚未更新：目前線上部署為舊版，請部署最新 worker.js', 'error');
+        } else if (resp.ok) {
+          showToast('✓ Cloudflare Worker 連線正常！', 'success');
         } else {
-          showToast(`Worker 回應 HTTP ${resp.status}，請檢查 Secrets 與部署狀態`, 'error');
+          showToast(`Worker 回應 HTTP ${resp.status} (${data.error || '未知狀態'})`, 'error');
         }
       } catch (err) {
         showLoading(false);
@@ -3225,7 +3878,23 @@
         renderRecipesRepo(e.target.value.trim());
       });
 
-      // 資料匯出與重設
+      // ✨ AI 新增 5 道料理按鈕監聽
+      document.getElementById('btn-ai-add-recipes')?.addEventListener('click', handleAiAddRecipes);
+
+      // 主題預覽按鈕監聽 (設定 Modal 內)
+      document.querySelectorAll('.btn-preview-theme').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const targetTheme = e.currentTarget.getAttribute('data-theme');
+          window.setThemeForTesting(targetTheme);
+        });
+      });
+
+      // 點擊頂部主題標籤亦可開啟設定以預覽或調整
+      document.getElementById('theme-badge')?.addEventListener('click', () => {
+        openSettingsModal();
+      });
+
+      // 資料匯出與重設 (重設所有本機資料，包含 AI 料理與新食材)
       document.getElementById('btn-export-data').addEventListener('click', () => {
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
         const dlAnchor = document.createElement('a');
@@ -3235,11 +3904,24 @@
       });
 
       document.getElementById('btn-reset-all-data').addEventListener('click', () => {
-        if (confirm('確定要清除所有本機資料並恢復預設狀態嗎？')) {
+        if (confirm('確定要清除所有本機資料並恢復預設狀態嗎？（這將一併清除自訂 AI 料理與歷史紀錄）')) {
           localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem(AI_RECIPES_STORAGE_KEY);
+          localStorage.removeItem(AI_INGREDIENTS_STORAGE_KEY);
+          aiRecipes = [];
+          customIngredients = {};
           appState = JSON.parse(JSON.stringify(defaultState));
           saveState();
           location.reload();
+        }
+      });
+
+      // 初始化時間主題系統與自動計時器 (30 秒定時輪詢與視窗焦點喚醒)
+      checkAndUpdateTheme();
+      setInterval(checkAndUpdateTheme, 30000);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+          checkAndUpdateTheme();
         }
       });
 
