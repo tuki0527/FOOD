@@ -12,7 +12,7 @@
  * - Full CORS support for GitHub Pages (tuki0527.github.io), localhost, and custom domains
  * - Payload size limit protection (50KB)
  * - Safe API Key reading from Cloudflare Worker Secrets (env.GEMINI_API_KEY)
- * - Multi-model fallback: automatically tries gemini-3.8-flash, then gemini-3.5-flash-lite, then gemini-3.5-flash on 503/429
+ * - Multi-model fallback: tries Gemini 2.5 Flash then 2.5 Flash Lite on transient errors
  * - Strict JSON extraction & markdown fence stripping
  * - Error isolation protecting sensitive credentials
  */
@@ -25,7 +25,11 @@ const CORS_HEADERS = {
 };
 
 const SUPPORTED_ACTIONS = ['generate_week', 'replace_day', 'generate_recipes', 'ping'];
-const CANDIDATE_MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3.5-flash'];
+const CANDIDATE_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+
+function normalizeName(value) {
+  return String(value || '').normalize('NFKC').replace(/[\s、，,。．.・\-—_]/g, '').toLowerCase();
+}
 
 export default {
   async fetch(request, env, ctx) {
@@ -236,7 +240,7 @@ ${JSON.stringify(availableIngredients || [], null, 1)}
 
     for (const modelName of CANDIDATE_MODELS) {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000);
+      const timeoutId = setTimeout(() => controller.abort(), 45000);
 
       try {
         const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
@@ -249,7 +253,7 @@ ${JSON.stringify(availableIngredients || [], null, 1)}
           ],
           generationConfig: {
             temperature: 0.4,
-            maxOutputTokens: 3500,
+            maxOutputTokens: action === 'generate_recipes' ? 8192 : 4096,
             responseMimeType: 'application/json',
           },
         };
@@ -296,7 +300,7 @@ ${JSON.stringify(availableIngredients || [], null, 1)}
 
     // 9. Extract and validate JSON response
     try {
-      const rawText = geminiResult.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+      const rawText = (geminiResult.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('') || '{}';
 
       let cleanedText = rawText.trim();
       if (cleanedText.startsWith('```')) {
@@ -310,6 +314,44 @@ ${JSON.stringify(availableIngredients || [], null, 1)}
 
       const parsedData = JSON.parse(cleanedText);
 
+      if (action === 'generate_recipes') {
+        if (!Array.isArray(parsedData.recipes) || parsedData.recipes.length !== 5) {
+          throw new Error('AI 未產生剛好 5 道料理，請重試。');
+        }
+        const names = new Set();
+        const existing = new Set((Array.isArray(existingRecipeNames) ? existingRecipeNames : []).map(normalizeName));
+        const forbidden = [
+          ...(Array.isArray(preferences?.allergens) ? preferences.allergens : []),
+          ...(Array.isArray(preferences?.dislikedIngredients) ? preferences.dislikedIngredients : []),
+        ].map(x => String(x).trim()).filter(Boolean);
+        for (const recipe of parsedData.recipes) {
+          if (!recipe || typeof recipe.name !== 'string' || !recipe.name.trim() ||
+              !Array.isArray(recipe.ingredients) || recipe.ingredients.length === 0 ||
+              !Array.isArray(recipe.steps) || recipe.steps.length < 2) {
+            throw new Error('AI 料理缺少必要資料，請重試。');
+          }
+          const name = normalizeName(recipe.name);
+          if (names.has(name) || existing.has(name)) {
+            throw new Error('AI 料理名稱重複，請重試。');
+          }
+          names.add(name);
+          for (const ingredient of recipe.ingredients) {
+            if (!ingredient || typeof ingredient.name !== 'string' || !ingredient.name.trim() ||
+                !Number.isFinite(Number(ingredient.amount)) || Number(ingredient.amount) <= 0 ||
+                !Number.isFinite(Number(ingredient.estimatedKcal)) || Number(ingredient.estimatedKcal) < 0 ||
+                !Number.isFinite(Number(ingredient.estimatedCost)) || Number(ingredient.estimatedCost) < 0) {
+              throw new Error('AI 食材份量或估算資料不完整，請重試。');
+            }
+          }
+          // Conservative text check. Frontend must ALSO check allergens against
+          // canonical ingredient metadata; model-generated allergen tags are not reliable.
+          const ingredientText = recipe.ingredients.map(i => i.name).join('、');
+          const allergenText = Array.isArray(recipe.allergens) ? recipe.allergens.join('、') : '';
+          if (forbidden.some(item => ingredientText.includes(item) || allergenText.includes(item))) {
+            throw new Error('AI 料理可能包含忌口或過敏原，已拒絕結果，請重試。');
+          }
+        }
+      }
       return new Response(JSON.stringify(parsedData), {
         status: 200,
         headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
@@ -325,3 +367,4 @@ ${JSON.stringify(availableIngredients || [], null, 1)}
     }
   },
 };
+
